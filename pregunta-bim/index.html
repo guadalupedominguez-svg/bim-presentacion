@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>¿BIM? — Pregunta inicial</title>
+  <title>¿BIM? ¿En construcción?</title>
 
   <style>
     :root{
       --bg:#ececec;
       --text:#0a0a0a;
-      /* unidad que respeta proporción 16:9 del recuadro de la diapositiva */
-      --u:min(1vw, calc(1vh * 16 / 9));
+      --ease:cubic-bezier(.22,.78,.22,1);
     }
 
     *{ box-sizing:border-box; }
@@ -22,7 +21,6 @@
       overflow:hidden;
       background:var(--bg);
       font-family:Arial, Helvetica, sans-serif;
-      color:var(--text);
     }
 
     .stage{
@@ -31,131 +29,200 @@
       height:100vh;
       overflow:hidden;
       background:var(--bg);
+      color:var(--text);
     }
 
-    .line{
+    /* ---------- Frases tenues de fondo ---------- */
+    .echo{
+      position:absolute;
+      text-transform:uppercase;
+      letter-spacing:-0.035em;
+      line-height:1.04;
+      white-space:nowrap;
+      font-size:clamp(1rem,2vw,2.25rem);
+      color:var(--text);
+      opacity:0;
+      filter:blur(.45px);
+      transform:translateY(18px);
+      transition:opacity 1400ms ease, transform 3200ms var(--ease);
+      pointer-events:none;
+      z-index:1;
+    }
+    .echo.on{
+      opacity:.085;
+      transform:translateY(0);
+    }
+
+    /* ---------- Textos principales ---------- */
+    .t{
       position:absolute;
       font-weight:400;
+      line-height:1.04;
       white-space:nowrap;
+      z-index:5;
       opacity:0;
-      filter:blur(14px);
-      transition:
-        transform 900ms cubic-bezier(.22,.78,.22,1),
-        opacity 750ms ease,
-        filter 750ms ease;
       will-change:transform, opacity, filter;
     }
 
-    /* ¿BIM? — grande, a la izquierda */
-    .q1{
-      left:7.3%;
-      top:32%;
-      font-size:calc(var(--u) * 9.8);
-      letter-spacing:-0.01em;
-      transform:translateY(-50%) translateY(28px);
+    .t-bim{
+      left:9.5vw;
+      top:33vh;
+      transform:translateY(-50%) scale(1.04);
+      font-size:clamp(3rem,9.4vw,10rem);
+      letter-spacing:-0.02em;
+      filter:blur(14px);
+      transition:opacity 1100ms ease, filter 1400ms var(--ease), transform 1400ms var(--ease);
     }
-
-    /* ¿EN CONSTUCCIÓN? — a la derecha */
-    .q2{
-      right:5.7%;
-      top:57%;
-      font-size:calc(var(--u) * 4.9);
-      transform:translateY(-50%) translateX(60px);
-    }
-
-    /* ...Pero si así sin BIM cumplimos — centrada, abajo */
-    .q3{
-      left:52%;
-      top:85%;
-      font-size:calc(var(--u) * 3.25);
-      transform:translate(-50%, -50%);
-      filter:none;
-    }
-
-    .line.in{
+    .t-bim.in{
       opacity:1;
       filter:blur(0);
+      transform:translateY(-50%) scale(1);
     }
-    .q1.in{ transform:translateY(-50%) translateY(0); }
-    .q2.in{ transform:translateY(-50%) translateX(0); }
 
-    .line.out{
-      opacity:0;
-      filter:blur(10px);
-      transition:opacity 700ms ease, filter 700ms ease, transform 700ms ease;
+    .t-const{
+      right:5.5vw;
+      top:52vh;
+      transform:translate(44px,-50%);
+      font-size:clamp(1.6rem,5vw,5.4rem);
+      letter-spacing:-0.01em;
+      text-transform:uppercase;
+      filter:blur(6px);
+      transition:opacity 900ms ease, filter 1100ms var(--ease), transform 1100ms var(--ease);
     }
-    .q3.out{ filter:blur(6px); }
+    .t-const.in{
+      opacity:1;
+      filter:blur(0);
+      transform:translate(0,-50%);
+    }
 
+    .t-pero{
+      left:50%;
+      top:79vh;
+      transform:translate(-50%,-50%);
+      font-size:clamp(1rem,3.3vw,3.4rem);
+      opacity:1;
+    }
     .caret{
       display:inline-block;
-      width:0.06em;
-      height:1em;
-      margin-left:0.06em;
+      width:.06em;
+      height:.95em;
+      margin-left:.08em;
+      vertical-align:-.1em;
       background:var(--text);
-      vertical-align:-0.12em;
-      animation:blink 900ms steps(1) infinite;
+      opacity:0;
     }
-    .caret.hide{ visibility:hidden; }
+    .caret.on{ animation:blink 1.05s steps(1) infinite; }
+    @keyframes blink{ 0%,49%{opacity:.8} 50%,100%{opacity:0} }
 
-    @keyframes blink{ 50%{ opacity:0; } }
+    .hint{
+      position:absolute;
+      right:3vw;
+      top:4vh;
+      font-size:.68rem;
+      letter-spacing:.11em;
+      color:#777;
+      opacity:.30;
+      user-select:none;
+      z-index:6;
+    }
 
     @media (prefers-reduced-motion:reduce){
-      .line{ transition:none; filter:none; }
+      .t, .echo{ transition:none; }
     }
   </style>
 </head>
 
 <body>
-  <main class="stage" aria-label="¿BIM? ¿En construcción? ...Pero si así sin BIM cumplimos">
-    <div class="line q1" id="q1">¿BIM?</div>
-    <div class="line q2" id="q2">¿EN CONSTUCCIÓN?</div>
-    <div class="line q3" id="q3"><span id="typed"></span><span class="caret hide" id="caret"></span></div>
+  <main class="stage" aria-label="¿BIM? ¿En construcción? …Pero si así, sin BIM, cumplimos">
+    <div class="hint">ESPACIO · REPETIR</div>
+    <div id="echoes"></div>
+
+    <div id="bim" class="t t-bim">¿BIM?</div>
+    <div id="const" class="t t-const">¿En construcción?</div>
+    <div id="pero" class="t t-pero"><span id="typed"></span><span id="caret" class="caret"></span></div>
   </main>
 
   <script>
-    const q1 = document.getElementById("q1");
-    const q2 = document.getElementById("q2");
-    const q3 = document.getElementById("q3");
+    const PERO = "…Pero si así, sin BIM, cumplimos";
+
+    /* Frases que se escuchan en obra: aparecen muy tenues detrás del texto */
+    const ECHOES = [
+      "SIEMPRE LO HEMOS HECHO ASÍ",
+      "EN OBRA SE RESUELVE",
+      "NO HAY TIEMPO",
+      "LO ARREGLAMOS DESPUÉS",
+      "CON LA EXPERIENCIA BASTA",
+      "EL PLANO ES SUFICIENTE",
+      "ASÍ FUNCIONA"
+    ];
+    /* Posiciones libres (no tapan los textos principales) */
+    const SLOTS = [
+      {left:"56vw", top:"14vh"},
+      {left:"9vw",  top:"58vh"},
+      {left:"58vw", top:"30vh"},
+      {left:"9vw",  top:"92vh"},
+      {left:"55vw", top:"92vh"},
+      {left:"9vw",  top:"10vh"},
+      {left:"62vw", top:"66vh"}
+    ];
+
+    const echoBox = document.getElementById("echoes");
+    const echoes = ECHOES.map((txt, i) => {
+      const el = document.createElement("div");
+      el.className = "echo";
+      el.textContent = txt;
+      el.style.left = SLOTS[i % SLOTS.length].left;
+      el.style.top  = SLOTS[i % SLOTS.length].top;
+      echoBox.appendChild(el);
+      return el;
+    });
+
+    let echoIdx = 0;
+    function cycleEchoes(){
+      const el = echoes[echoIdx];
+      el.classList.add("on");
+      setTimeout(() => el.classList.remove("on"), 3400);
+      echoIdx = (echoIdx + 1) % echoes.length;
+    }
+
+    const bim = document.getElementById("bim");
+    const cons = document.getElementById("const");
     const typed = document.getElementById("typed");
     const caret = document.getElementById("caret");
 
-    const PHRASE = "...Pero si así sin BIM cumplimos";
-    const CHAR_MS = 55;      // velocidad de escritura
-    const HOLD_MS = 4200;    // tiempo con todo el texto visible
-    const GAP_MS  = 700;     // pausa en blanco antes de repetir
+    let timers = [];
+    function later(fn, ms){ timers.push(setTimeout(fn, ms)); }
 
-    const wait = (ms) => new Promise(r => setTimeout(r, ms));
-
-    async function cycle(){
-      // reinicio
-      [q1, q2, q3].forEach(el => el.classList.remove("in", "out"));
+    function play(){
+      timers.forEach(clearTimeout); timers = [];
+      bim.classList.remove("in");
+      cons.classList.remove("in");
       typed.textContent = "";
-      caret.classList.add("hide");
-      await wait(GAP_MS);
+      caret.classList.remove("on");
 
-      q1.classList.add("in");
-      await wait(1000);
-
-      q2.classList.add("in");
-      await wait(1200);
-
-      q3.classList.add("in");
-      caret.classList.remove("hide");
-      for (let i = 1; i <= PHRASE.length; i++){
-        typed.textContent = PHRASE.slice(0, i);
-        await wait(PHRASE[i - 1] === "." ? CHAR_MS * 3 : CHAR_MS);
-      }
-
-      await wait(HOLD_MS);
-
-      caret.classList.add("hide");
-      [q1, q2, q3].forEach(el => el.classList.add("out"));
-      await wait(900);
-
-      cycle();
+      later(() => bim.classList.add("in"), 400);
+      later(() => cons.classList.add("in"), 1800);
+      later(() => {
+        caret.classList.add("on");
+        let i = 0;
+        const step = () => {
+          i++;
+          typed.textContent = PERO.slice(0, i);
+          if (i < PERO.length) later(step, PERO[i - 1] === "," ? 240 : 58);
+        };
+        later(step, 350);
+      }, 3200);
     }
 
-    cycle();
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space"){
+        e.preventDefault();
+        play();
+      }
+    });
+
+    play();
+    setTimeout(() => { cycleEchoes(); setInterval(cycleEchoes, 2300); }, 2600);
   </script>
 </body>
 </html>
