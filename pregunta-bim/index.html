@@ -9,7 +9,6 @@
     :root{
       --bg:#ececec;
       --text:#0a0a0a;
-      --ease:cubic-bezier(.22,.78,.22,1);
     }
 
     *{ box-sizing:border-box; }
@@ -29,200 +28,213 @@
       height:100vh;
       overflow:hidden;
       background:var(--bg);
-      color:var(--text);
     }
 
-    /* ---------- Frases tenues de fondo ---------- */
-    .echo{
+    /* ---------- frases tenues de fondo ---------- */
+    .ghosts{
       position:absolute;
-      text-transform:uppercase;
-      letter-spacing:-0.035em;
-      line-height:1.04;
-      white-space:nowrap;
-      font-size:clamp(1rem,2vw,2.25rem);
-      color:var(--text);
-      opacity:0;
-      filter:blur(.45px);
-      transform:translateY(18px);
-      transition:opacity 1400ms ease, transform 3200ms var(--ease);
+      inset:0;
       pointer-events:none;
-      z-index:1;
-    }
-    .echo.on{
-      opacity:.085;
-      transform:translateY(0);
+      transition:opacity 900ms ease;
     }
 
-    /* ---------- Textos principales ---------- */
+    .ghost{
+      position:absolute;
+      left:0;
+      white-space:nowrap;
+      text-transform:uppercase;
+      letter-spacing:-0.02em;
+      color:var(--text);
+      opacity:.055;
+      filter:blur(.4px);
+      font-size:clamp(.9rem,2.1vw,2.1rem);
+      will-change:transform;
+      animation:drift linear infinite;
+    }
+
+    @keyframes drift{
+      from{ transform:translateX(var(--from)); }
+      to  { transform:translateX(var(--to)); }
+    }
+
+    /* ---------- textos principales ---------- */
     .t{
       position:absolute;
+      color:var(--text);
       font-weight:400;
       line-height:1.04;
       white-space:nowrap;
-      z-index:5;
       opacity:0;
       will-change:transform, opacity, filter;
     }
 
-    .t-bim{
-      left:9.5vw;
+    .bim{
+      left:7.5vw;
       top:33vh;
-      transform:translateY(-50%) scale(1.04);
-      font-size:clamp(3rem,9.4vw,10rem);
+      transform:translateY(-50%) scale(1.06);
+      font-size:clamp(3rem,9.2vw,9rem);
       letter-spacing:-0.02em;
       filter:blur(14px);
-      transition:opacity 1100ms ease, filter 1400ms var(--ease), transform 1400ms var(--ease);
+      transition:
+        opacity 1100ms ease,
+        filter 1100ms ease,
+        transform 1300ms cubic-bezier(.22,.78,.22,1);
     }
-    .t-bim.in{
+
+    .bim.on{
       opacity:1;
       filter:blur(0);
       transform:translateY(-50%) scale(1);
     }
 
-    .t-const{
+    .construccion{
       right:5.5vw;
-      top:52vh;
-      transform:translate(44px,-50%);
-      font-size:clamp(1.6rem,5vw,5.4rem);
+      top:57vh;
+      transform:translate(60px,-50%);
+      font-size:clamp(1.6rem,4.9vw,4.8rem);
       letter-spacing:-0.01em;
-      text-transform:uppercase;
       filter:blur(6px);
-      transition:opacity 900ms ease, filter 1100ms var(--ease), transform 1100ms var(--ease);
+      transition:
+        opacity 900ms ease,
+        filter 900ms ease,
+        transform 1000ms cubic-bezier(.22,.78,.22,1);
     }
-    .t-const.in{
+
+    .construccion.on{
       opacity:1;
       filter:blur(0);
       transform:translate(0,-50%);
     }
 
-    .t-pero{
+    .frase{
       left:50%;
-      top:79vh;
+      top:85vh;
       transform:translate(-50%,-50%);
-      font-size:clamp(1rem,3.3vw,3.4rem);
-      opacity:1;
+      font-size:clamp(1.05rem,3.4vw,3.3rem);
+      letter-spacing:-0.01em;
+      transition:opacity 400ms ease;
     }
-    .caret{
+
+    .frase.on{ opacity:1; }
+
+    .cursor{
       display:inline-block;
       width:.06em;
       height:.95em;
       margin-left:.08em;
-      vertical-align:-.1em;
+      vertical-align:-.12em;
       background:var(--text);
-      opacity:0;
+      animation:blink 1s steps(1) infinite;
     }
-    .caret.on{ animation:blink 1.05s steps(1) infinite; }
-    @keyframes blink{ 0%,49%{opacity:.8} 50%,100%{opacity:0} }
 
-    .hint{
-      position:absolute;
-      right:3vw;
-      top:4vh;
-      font-size:.68rem;
-      letter-spacing:.11em;
-      color:#777;
-      opacity:.30;
-      user-select:none;
-      z-index:6;
+    @keyframes blink{
+      0%,50%{ opacity:1; }
+      50.01%,100%{ opacity:0; }
+    }
+
+    /* salida suave antes de repetir */
+    .stage.out .t,
+    .stage.out .ghosts{
+      opacity:0 !important;
+      transition:opacity 800ms ease;
     }
 
     @media (prefers-reduced-motion:reduce){
-      .t, .echo{ transition:none; }
+      .t, .ghost{ transition:none; animation:none; }
     }
   </style>
 </head>
 
 <body>
-  <main class="stage" aria-label="¿BIM? ¿En construcción? …Pero si así, sin BIM, cumplimos">
-    <div class="hint">ESPACIO · REPETIR</div>
-    <div id="echoes"></div>
+  <main id="stage" class="stage" aria-label="¿BIM? ¿En construcción? ...Pero así sin BIM hemos cumplido">
+    <div id="ghosts" class="ghosts" aria-hidden="true"></div>
 
-    <div id="bim" class="t t-bim">¿BIM?</div>
-    <div id="const" class="t t-const">¿En construcción?</div>
-    <div id="pero" class="t t-pero"><span id="typed"></span><span id="caret" class="caret"></span></div>
+    <div id="bim" class="t bim">¿BIM?</div>
+    <div id="construccion" class="t construccion">¿EN CONSTRUCCIÓN?</div>
+    <div id="frase" class="t frase"><span id="typed"></span><span class="cursor"></span></div>
   </main>
 
   <script>
-    const PERO = "…Pero si así, sin BIM, cumplimos";
-
-    /* Frases que se escuchan en obra: aparecen muy tenues detrás del texto */
-    const ECHOES = [
+    /* Frases que se escuchan en obra: pasan muy tenues al fondo */
+    const GHOSTS = [
       "SIEMPRE LO HEMOS HECHO ASÍ",
       "EN OBRA SE RESUELVE",
       "NO HAY TIEMPO",
-      "LO ARREGLAMOS DESPUÉS",
-      "CON LA EXPERIENCIA BASTA",
-      "EL PLANO ES SUFICIENTE",
-      "ASÍ FUNCIONA"
-    ];
-    /* Posiciones libres (no tapan los textos principales) */
-    const SLOTS = [
-      {left:"56vw", top:"14vh"},
-      {left:"9vw",  top:"58vh"},
-      {left:"58vw", top:"30vh"},
-      {left:"9vw",  top:"92vh"},
-      {left:"55vw", top:"92vh"},
-      {left:"9vw",  top:"10vh"},
-      {left:"62vw", top:"66vh"}
+      "LO VEMOS SOBRE LA MARCHA",
+      "CON EL PLANO ES SUFICIENTE",
+      "ASÍ HA FUNCIONADO"
     ];
 
-    const echoBox = document.getElementById("echoes");
-    const echoes = ECHOES.map((txt, i) => {
+    const FRASE = "...Pero así sin BIM hemos cumplido";
+
+    const stage = document.getElementById("stage");
+    const ghosts = document.getElementById("ghosts");
+    const bim = document.getElementById("bim");
+    const construccion = document.getElementById("construccion");
+    const frase = document.getElementById("frase");
+    const typed = document.getElementById("typed");
+
+    /* filas de fondo, alternando dirección */
+    const rows = [12, 24, 46, 70, 94];
+    rows.forEach((top, i) => {
       const el = document.createElement("div");
-      el.className = "echo";
-      el.textContent = txt;
-      el.style.left = SLOTS[i % SLOTS.length].left;
-      el.style.top  = SLOTS[i % SLOTS.length].top;
-      echoBox.appendChild(el);
-      return el;
+      el.className = "ghost";
+      el.style.top = top + "vh";
+      el.textContent = (GHOSTS[i % GHOSTS.length] + "  ·  " + GHOSTS[(i + 3) % GHOSTS.length] + "  ·  ").repeat(2);
+      const ltr = i % 2 === 0;
+      el.style.setProperty("--from", ltr ? "-60%" : "10%");
+      el.style.setProperty("--to",   ltr ? "10%"  : "-60%");
+      el.style.animationDuration = (46 + i * 7) + "s";
+      el.style.animationDelay = (-i * 9) + "s";
+      ghosts.appendChild(el);
     });
 
-    let echoIdx = 0;
-    function cycleEchoes(){
-      const el = echoes[echoIdx];
-      el.classList.add("on");
-      setTimeout(() => el.classList.remove("on"), 3400);
-      echoIdx = (echoIdx + 1) % echoes.length;
+    let timers = [];
+    let paused = false;
+    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+
+    function reset(){
+      timers.forEach(clearTimeout);
+      timers = [];
+      stage.classList.remove("out");
+      [bim, construccion, frase].forEach(el => el.classList.remove("on"));
+      typed.textContent = "";
     }
 
-    const bim = document.getElementById("bim");
-    const cons = document.getElementById("const");
-    const typed = document.getElementById("typed");
-    const caret = document.getElementById("caret");
-
-    let timers = [];
-    function later(fn, ms){ timers.push(setTimeout(fn, ms)); }
-
     function play(){
-      timers.forEach(clearTimeout); timers = [];
-      bim.classList.remove("in");
-      cons.classList.remove("in");
-      typed.textContent = "";
-      caret.classList.remove("on");
+      reset();
+      at(400,  () => bim.classList.add("on"));
+      at(1900, () => construccion.classList.add("on"));
+      at(3300, () => frase.classList.add("on"));
 
-      later(() => bim.classList.add("in"), 400);
-      later(() => cons.classList.add("in"), 1800);
-      later(() => {
-        caret.classList.add("on");
-        let i = 0;
-        const step = () => {
-          i++;
-          typed.textContent = PERO.slice(0, i);
-          if (i < PERO.length) later(step, PERO[i - 1] === "," ? 240 : 58);
-        };
-        later(step, 350);
-      }, 3200);
+      const start = 3500, perChar = 58;
+      for (let i = 1; i <= FRASE.length; i++){
+        /* pausa breve después de los puntos suspensivos */
+        const extra = i > 3 ? 380 : 0;
+        at(start + i * perChar + extra, () => { typed.textContent = FRASE.slice(0, i); });
+      }
+
+      const end = start + FRASE.length * perChar + 380;
+      at(end + 8500, () => stage.classList.add("out"));
+      at(end + 9500, play);
     }
 
     document.addEventListener("keydown", (e) => {
       if (e.code === "Space"){
         e.preventDefault();
-        play();
+        paused = !paused;
+        if (paused){
+          timers.forEach(clearTimeout);
+          timers = [];
+          document.querySelectorAll(".ghost").forEach(g => g.style.animationPlayState = "paused");
+        } else {
+          document.querySelectorAll(".ghost").forEach(g => g.style.animationPlayState = "running");
+          play();
+        }
       }
     });
 
     play();
-    setTimeout(() => { cycleEchoes(); setInterval(cycleEchoes, 2300); }, 2600);
   </script>
 </body>
 </html>
