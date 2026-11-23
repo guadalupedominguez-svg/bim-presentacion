@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planeación Estratégica — Escalonamiento</title>
+
+  <style>
+    :root{
+      --bg:#ececec;
+      --text:#0a0a0a;
+    }
+
+    *{ box-sizing:border-box; }
+
+    html,body{
+      margin:0;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      background:var(--bg);
+      font-family:Arial, Helvetica, sans-serif;
+    }
+
+    body{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .stage{
+      position:relative;
+      width:100vw;
+      height:100vh;
+      overflow:hidden;
+      background:var(--bg);
+    }
+
+    .stack{
+      position:absolute;
+      inset:0;
+    }
+
+    .word{
+      position:absolute;
+      left:50%;
+      top:50%;
+      width:92vw;
+      text-align:center;
+      text-transform:uppercase;
+      color:var(--text);
+      font-weight:400;
+      line-height:1.04;
+      letter-spacing:-0.035em;
+      white-space:nowrap;
+
+      transform:translate(-50%, -50%);
+      transition:
+        transform 780ms cubic-bezier(.22,.78,.22,1),
+        opacity 650ms ease,
+        filter 650ms ease,
+        font-size 650ms ease;
+      will-change:transform, opacity;
+    }
+
+    .word .lc{ text-transform:none; }
+
+    /* Palabra activa */
+    .pos-0{
+      transform:translate(-50%, -50%) translateY(0);
+      opacity:1;
+      filter:blur(0);
+      font-size:clamp(2.35rem,4.6vw,5.15rem);
+      z-index:10;
+    }
+
+    /* Próximas palabras: arriba, visibles pero tenues */
+    .pos-n1{
+      transform:translate(-50%, -50%) translateY(-120px);
+      opacity:.19;
+      filter:blur(.15px);
+      font-size:clamp(1.5rem,2.7vw,3rem);
+      z-index:7;
+    }
+
+    .pos-n2{
+      transform:translate(-50%, -50%) translateY(-205px);
+      opacity:.075;
+      filter:blur(.4px);
+      font-size:clamp(1.15rem,2vw,2.25rem);
+      z-index:6;
+    }
+
+    /* Las ya mostradas bajan como escalones */
+    .pos-p1{
+      transform:translate(-50%, -50%) translateY(126px);
+      opacity:.22;
+      filter:blur(.15px);
+      font-size:clamp(1.5rem,2.7vw,3rem);
+      z-index:7;
+    }
+
+    .pos-p2{
+      transform:translate(-50%, -50%) translateY(216px);
+      opacity:.085;
+      filter:blur(.45px);
+      font-size:clamp(1.15rem,2vw,2.25rem);
+      z-index:6;
+    }
+
+    .far{
+      opacity:0;
+      pointer-events:none;
+      font-size:1rem;
+      z-index:1;
+    }
+
+    .far-up{
+      transform:translate(-50%, -50%) translateY(-290px);
+    }
+
+    .far-down{
+      transform:translate(-50%, -50%) translateY(300px);
+    }
+
+    .meta{
+      position:absolute;
+      left:50%;
+      bottom:6vh;
+      transform:translateX(-50%);
+      font-size:clamp(.62rem,.78vw,.8rem);
+      letter-spacing:.21em;
+      text-transform:uppercase;
+      color:#6f6f6f;
+      opacity:.62;
+      white-space:nowrap;
+      transition:opacity .3s ease;
+    }
+
+    .hint{
+      position:absolute;
+      right:3vw;
+      top:4vh;
+      font-size:.68rem;
+      letter-spacing:.11em;
+      color:#777;
+      opacity:.30;
+      user-select:none;
+    }
+
+    @media (max-width:900px){
+      .word{ white-space:normal; }
+      .pos-0{ font-size:clamp(2rem,7.7vw,3.8rem); }
+      .pos-n1,.pos-p1{ font-size:clamp(1.2rem,4.6vw,2.2rem); }
+      .pos-n2,.pos-p2{ font-size:clamp(.95rem,3.6vw,1.65rem); }
+
+      .pos-n1{ transform:translate(-50%,-50%) translateY(-105px); }
+      .pos-n2{ transform:translate(-50%,-50%) translateY(-175px); }
+      .pos-p1{ transform:translate(-50%,-50%) translateY(110px); }
+      .pos-p2{ transform:translate(-50%,-50%) translateY(185px); }
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      .word{ transition:none; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="stage" aria-label="Conceptos de planeación estratégica">
+    <div class="hint">ESPACIO · PAUSA</div>
+    <div id="stack" class="stack"></div>
+    <div id="meta" class="meta">PLANEACIÓN</div>
+  </main>
+
+  <script>
+    const items = [
+      {text:"ESTRATEGIA",          group:"DIRECCIÓN"},
+      {text:"OBJETIVOS",           group:"DIRECCIÓN"},
+      {text:"ALINEACIÓN",          group:"DIRECCIÓN"},
+      {text:"PLANEACIÓN",          group:"PLANEACIÓN"},
+      {text:"ESCENARIO",           group:"PLANEACIÓN"},
+      {text:"PREVISIÓN",           group:"PLANEACIÓN"},
+      {text:"ANTICIPACIÓN",        group:"PLANEACIÓN"},
+      {text:"GESTIÓN DE RIESGOS",  group:"PLANEACIÓN"},
+      {text:"RECURSOS",            group:"EJECUCIÓN"},
+      {text:"CRONOGRAMA",          group:"EJECUCIÓN"},
+      {text:"PRIORIDADES",         group:"EJECUCIÓN"},
+      {text:"COORDINACIÓN",        group:"EJECUCIÓN"},
+      {html:"KPI<span class='lc'>'s</span>", group:"CONTROL"},
+      {text:"SEGUIMIENTO",         group:"CONTROL"},
+      {text:"TOMA DE DECISIONES",  group:"CONTROL"},
+      {text:"ADAPTABILIDAD",       group:"MEJORA"},
+      {text:"MEJORA CONTINUA",     group:"MEJORA"},
+      {text:"RESULTADOS",          group:"PROPÓSITO"}
+    ];
+
+    const stack = document.getElementById("stack");
+    const meta = document.getElementById("meta");
+
+    let current = 0;
+    let paused = false;
+    let stepTimer = null;
+
+    const STEP_MS = 1250;
+
+    const nodes = items.map((item, i) => {
+      const el = document.createElement("div");
+      el.className = "word";
+      el.dataset.index = i;
+      if (item.html) el.innerHTML = item.html; else el.textContent = item.text;
+      stack.appendChild(el);
+      return el;
+    });
+
+    function circularDistance(i, c){
+      const n = items.length;
+      let d = i - c;
+      if (d > n/2) d -= n;
+      if (d < -n/2) d += n;
+      return d;
+    }
+
+    function setPositionClasses(){
+      nodes.forEach((el, i) => {
+        el.className = "word";
+        const d = circularDistance(i, current);
+
+        if (d === 0) el.classList.add("pos-0");
+        else if (d === -1) el.classList.add("pos-p1");
+        else if (d === -2) el.classList.add("pos-p2");
+        else if (d === 1) el.classList.add("pos-n1");
+        else if (d === 2) el.classList.add("pos-n2");
+        else {
+          el.classList.add("far");
+          el.classList.add(d > 0 ? "far-up" : "far-down");
+        }
+      });
+
+      meta.textContent = items[current].group;
+    }
+
+    function nextStep(){
+      if (paused) return;
+
+      current = (current + 1) % items.length;
+      setPositionClasses();
+
+      clearTimeout(stepTimer);
+      stepTimer = setTimeout(nextStep, STEP_MS);
+    }
+
+    function togglePause(){
+      paused = !paused;
+      clearTimeout(stepTimer);
+
+      if (!paused){
+        stepTimer = setTimeout(nextStep, 400);
+      }
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space"){
+        e.preventDefault();
+        togglePause();
+      }
+    });
+
+    setPositionClasses();
+    stepTimer = setTimeout(nextStep, 1600);
+  </script>
+</body>
+</html>
