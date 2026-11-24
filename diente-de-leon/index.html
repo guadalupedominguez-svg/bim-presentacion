@@ -41,23 +41,12 @@
       display:block;
     }
 
-    .hint{
-      position:absolute;
-      right:3vw;
-      top:4vh;
-      font-size:.68rem;
-      letter-spacing:.11em;
-      color:#777;
-      opacity:.30;
-      user-select:none;
-    }
   </style>
 </head>
 
 <body>
   <main class="stage" aria-label="Diente de león cuyas semillas forman las palabras personas, procesos y tecnología, y luego otro diente de león">
     <canvas id="c"></canvas>
-    <div class="hint">ESPACIO · PAUSA</div>
   </main>
 
   <script>
@@ -95,7 +84,6 @@
       canvas.width = W * dpr; canvas.height = H * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    window.addEventListener("resize", resize);
     resize();
 
     let clock = 0;
@@ -335,14 +323,37 @@
       ctx.globalAlpha = 1;
     }
 
-    let last = performance.now(), paused = false, started = false;
+    let last = performance.now(), started = false;
+
+    /* si el recuadro cambia de tamaño (Visme lo escala, lo oculta o lo muestra), se reacomoda y reinicia limpio */
+    function restart(){
+      stems[0] = { g0: clock, fade0: Infinity };
+      stems[1] = { g0: Infinity, fade0: Infinity };
+      cycleCount = 0;
+      schedule(clock, 0, true);
+    }
+    function ensureSize(){
+      const cw = canvas.clientWidth, ch = canvas.clientHeight;
+      if (cw === W && ch === H) return;
+      resize();
+      if (W > 0 && H > 0){
+        makeBackground();
+        if (started) restart();
+      }
+    }
 
     function frame(now){
       requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      if (paused || !started) return;
+      ensureSize();
+      if (W === 0 || H === 0) return;
+      if (!started && fontReady) start();
+      if (!started) return;
       clock += dt;
-      if (clock >= cyc.end) schedule(cyc.end, cyc.O, false);
+      if (clock >= cyc.end){
+        try { schedule(cyc.end, cyc.O, false); }
+        catch (err) { restart(); }
+      }
 
       ctx.clearRect(0, 0, W, H);
       drawBackground(dt);
@@ -447,23 +458,24 @@
       });
     }
 
+    let fontReady = false;
     function start(){
       if (started) return;
       resize();
+      if (W === 0 || H === 0) return;      // el recuadro aún no tiene tamaño: se intenta en el siguiente cuadro
       makeBackground();
+      clock = 0;
       schedule(0, 0, true);
       started = true;
       last = performance.now();
     }
     /* se espera a que cargue Arimo para muestrear bien las letras */
+    const ready = () => { fontReady = true; start(); };
     if (document.fonts && document.fonts.load){
-      Promise.race([document.fonts.load(`400 64px ${FONT}`), new Promise(r => setTimeout(r, 2000))]).then(start, start);
-    } else start();
+      Promise.race([document.fonts.load(`400 64px ${FONT}`), new Promise(r => setTimeout(r, 2000))]).then(ready, ready);
+    } else ready();
     requestAnimationFrame(frame);
 
-    document.addEventListener("keydown", (e) => {
-      if (e.code === "Space"){ e.preventDefault(); paused = !paused; last = performance.now(); }
-    });
   }
   </script>
 </body>
