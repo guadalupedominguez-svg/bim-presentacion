@@ -248,6 +248,93 @@
       }
     }
 
+    /* ---------- fondo: dientes de león lejanos meciéndose con la brisa ---------- */
+    let bg = [], breeze = [];
+    const BG_SPOTS = [
+      // x, altura de la cabeza (0-1 de H), radio (de U), opacidad, desenfoque
+      [0.05, 0.62, 0.060, 0.16, 1.6], [0.30, 0.74, 0.045, 0.12, 2.2], [0.40, 0.60, 0.035, 0.10, 2.6],
+      [0.58, 0.78, 0.050, 0.13, 2.0], [0.68, 0.64, 0.038, 0.10, 2.6], [0.95, 0.66, 0.065, 0.17, 1.4],
+      [0.12, 0.84, 0.075, 0.20, 1.0], [0.88, 0.86, 0.080, 0.20, 1.0], [0.50, 0.90, 0.055, 0.14, 1.8]
+    ];
+    function makeBackground(){
+      bg = BG_SPOTS.map(([x, hy, r, alpha, blur]) => {
+        const rad = U * r;
+        const size = Math.ceil(rad * 2.8);
+        const cv = document.createElement("canvas");
+        cv.width = size; cv.height = size;
+        const c2 = cv.getContext("2d");
+        c2.filter = `blur(${blur}px)`;
+        const n = 70, cx = size / 2, cy = size / 2, rot = rnd(0, 6.28);
+        c2.strokeStyle = `rgba(${INK},0.55)`;
+        c2.lineWidth = 0.8;
+        c2.beginPath();
+        for (let i = 0; i < n; i++){
+          const y = 1 - (i + 0.5) / n * 2, rr = Math.sqrt(1 - y * y), th = i * 2.39996 + rot;
+          const vx = Math.cos(th) * rr, vy = y;
+          const px = cx + vx * rad, py = cy + vy * rad;
+          c2.moveTo(cx, cy); c2.lineTo(px, py);
+          const base = Math.atan2(vy, vx);
+          for (let k = 0; k < 5; k++){
+            const a = base - 0.6 + 1.2 * (k / 4);
+            c2.moveTo(px, py); c2.lineTo(px + Math.cos(a) * rad * 0.22, py + Math.sin(a) * rad * 0.22);
+          }
+        }
+        c2.stroke();
+        c2.fillStyle = `rgba(${INK},0.8)`;
+        c2.beginPath(); c2.arc(cx, cy, rad * 0.09, 0, 6.28); c2.fill();
+        return { x: W * x, hy: H * hy, rad, alpha, blur, cv, size,
+                 amp: rnd(0.05, 0.10), sp: rnd(0.5, 0.9), ph: rnd(0, 6.28), ph2: rnd(0, 6.28) };
+      });
+      breeze = Array.from({ length: 16 }, () => ({
+        x: rnd(0, W), y: rnd(H * 0.1, H * 0.9), vx: U * rnd(0.025, 0.06), ph: rnd(0, 6.28),
+        a: rnd(0.10, 0.22), s: U * rnd(0.010, 0.018)
+      }));
+    }
+
+    function drawBackground(dt){
+      bg.forEach(f => {
+        /* brisa: vaivén suave más una ráfaga lenta */
+        const sway = Math.sin(clock * f.sp + f.ph) * f.amp + Math.sin(clock * 0.31 + f.ph2) * f.amp * 0.6;
+        const bx = f.x, by = H + 10, L = by - f.hy;
+        const tx = bx + Math.sin(sway) * L * 0.5, ty = f.hy + (1 - Math.cos(sway)) * L * 0.5;
+        ctx.globalAlpha = f.alpha;
+        ctx.strokeStyle = `rgba(${INK},0.7)`;
+        ctx.lineWidth = Math.max(1, f.rad * 0.05);
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.quadraticCurveTo(bx + Math.sin(sway) * L * 0.12, (by + ty) / 2, tx, ty);
+        ctx.stroke();
+        ctx.save();
+        ctx.translate(tx, ty);
+        ctx.rotate(sway * 0.8);
+        ctx.drawImage(f.cv, -f.size / 2, -f.size / 2);
+        ctx.restore();
+      });
+      /* semillas sueltas en el aire */
+      breeze.forEach(b => {
+        b.x += (b.vx + Math.sin(clock * 0.7 + b.ph) * U * 0.01) * dt;
+        b.y += Math.cos(clock * 0.9 + b.ph) * U * 0.012 * dt - U * 0.004 * dt;
+        if (b.x > W + 30){ b.x = -30; b.y = rnd(H * 0.1, H * 0.9); }
+        if (b.y < -30) b.y = H + 20;
+        ctx.globalAlpha = b.a;
+        const ang = -Math.PI / 2 + Math.sin(clock * 0.8 + b.ph) * 0.3;
+        ctx.strokeStyle = `rgba(${INK},0.7)`;
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        const tx = b.x + Math.cos(ang) * b.s * 0.9, ty = b.y + Math.sin(ang) * b.s * 0.9;
+        ctx.moveTo(b.x, b.y); ctx.lineTo(tx, ty);
+        for (let k = 0; k < 7; k++){
+          const a = ang - 0.65 + 1.3 * (k / 6);
+          ctx.moveTo(tx, ty); ctx.lineTo(tx + Math.cos(a) * b.s, ty + Math.sin(a) * b.s);
+        }
+        ctx.stroke();
+        ctx.fillStyle = `rgba(${INK},0.8)`;
+        ctx.beginPath(); ctx.arc(b.x, b.y, 1.1, 0, 6.28); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+    }
+
     let last = performance.now(), paused = false, started = false;
 
     function frame(now){
@@ -258,6 +345,7 @@
       if (clock >= cyc.end) schedule(cyc.end, cyc.O, false);
 
       ctx.clearRect(0, 0, W, H);
+      drawBackground(dt);
       drawStem(0); drawStem(1);
 
       const { S, O } = cyc;
@@ -362,6 +450,7 @@
     function start(){
       if (started) return;
       resize();
+      makeBackground();
       schedule(0, 0, true);
       started = true;
       last = performance.now();
