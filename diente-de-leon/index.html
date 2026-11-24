@@ -38,43 +38,6 @@
       display:block;
     }
 
-    /* títulos: mismo lenguaje que la diapositiva 5 */
-    .title{
-      position:absolute;
-      left:30vw;
-      transform:translate(-50%,-50%) translateY(14px);
-      text-transform:uppercase;
-      white-space:nowrap;
-      color:var(--text);
-      font-weight:400;
-      line-height:1.04;
-      letter-spacing:-0.035em;
-      opacity:0;
-      filter:blur(8px);
-      transition:
-        transform 780ms cubic-bezier(.22,.78,.22,1),
-        opacity 650ms ease,
-        filter 650ms ease;
-      pointer-events:none;
-    }
-    .title.main{ font-size:clamp(2.35rem,4.6vw,5.15rem); }
-    .title.sec { font-size:clamp(1.5rem,2.7vw,3rem); color:rgba(10,10,10,.45); }
-    .title.on{
-      opacity:1;
-      filter:blur(0);
-      transform:translate(-50%,-50%) translateY(0);
-    }
-    /* el viento se lleva el título hacia la derecha */
-    .title.gone{
-      opacity:0;
-      filter:blur(6px);
-      transform:translate(-50%,-50%) translate(90px,-18px);
-      transition:
-        transform 1100ms cubic-bezier(.4,0,.6,1),
-        opacity 900ms ease,
-        filter 900ms ease;
-    }
-
     .hint{
       position:absolute;
       right:3vw;
@@ -89,9 +52,8 @@
 </head>
 
 <body>
-  <main class="stage" aria-label="Diente de león que se dispersa y vuelve a formarse">
+  <main class="stage" aria-label="Diente de león cuyas semillas forman las palabras personas, procesos y tecnología">
     <canvas id="c"></canvas>
-    <div id="titles"></div>
     <div class="hint">ESPACIO · PAUSA</div>
   </main>
 
@@ -102,14 +64,19 @@
     const INK = "10,10,10";
 
     /* ritmo de cada generación (segundos) */
-    const GROW = 2.6;        // la nueva cabeza crece
-    const HOLD = 2.8;        // cabeza completa
-    const RELEASE = 4.2;     // las semillas se van soltando
-    const NEXT_AFTER = GROW + HOLD + RELEASE * 0.45;   // la siguiente empieza a crecer antes de que la anterior termine
-    const SEEDS = 120;
+    const GROW = 2.6;      // crece la cabeza
+    const HOLD = 4.5;      // cabeza completa (mientras se leen las palabras anteriores)
+    const RELEASE = 2.6;   // las semillas se sueltan
+    const FLIGHT = 2.3;    // vuelo hasta su lugar en la palabra
+    const NEXT = 8.5;      // cada cuánto nace una flor nueva (antes de que la anterior se vacíe)
+    const LEAVE = 2.6;     // el viento se lleva las palabras anteriores
+
+    const NAMES = ["PERSONAS", "PROCESOS", "TECNOLOGÍA"];
+    const ORDERS = [[0,1,2],[1,0,2],[2,1,0],[1,2,0],[0,2,1],[2,0,1]];
 
     const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
     const eo = x => 1 - Math.pow(1 - clamp(x), 3);
+    const eio = x => { x = clamp(x); return x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2; };
     const rnd = (a, b) => a + Math.random() * (b - a);
 
     let W = 0, H = 0, U = 0;
@@ -122,69 +89,99 @@
     window.addEventListener("resize", resize);
     resize();
 
-    const HX = 0.64;   // la flor se recorre a la derecha para dejar lugar a los títulos
+    let clock = 0;
+    const HX = 0.25;
     const head = () => ({ x: W * HX + Math.sin(clock * 0.6) * U * 0.006, y: H * 0.40 });
-    const R = () => U * 0.17;
+    const R = () => U * 0.16;
 
-    /* semillas repartidas en una esfera (espiral de Fibonacci) */
-    function makeGeneration(t0){
-      const rot = rnd(0, Math.PI * 2);
-      const seeds = [];
-      for (let i = 0; i < SEEDS; i++){
-        const y = 1 - (i + 0.5) / SEEDS * 2;
-        const r = Math.sqrt(1 - y * y);
-        const th = i * 2.39996 + rot;
-        const v = { x: Math.cos(th) * r, y: y, z: Math.sin(th) * r };
-        /* el viento sopla hacia la derecha: se sueltan primero las del lado derecho y de arriba */
-        const order = (1 - v.x) * 0.7 + (v.y + 1) * 0.15 + Math.random() * 0.35;
-        seeds.push({
-          v, len: rnd(0.92, 1.05),
-          grow: rnd(0, 0.5),
-          rel: order,
-          state: "head",
-          x: 0, y: 0, vx: 0, vy: 0, ang: 0, spin: rnd(-0.6, 0.6), ph: rnd(0, 6.28), life: 0
-        });
-      }
-      const max = Math.max(...seeds.map(s => s.rel));
-      seeds.forEach(s => s.rel = t0 + GROW + HOLD + (s.rel / max) * RELEASE);
-      return { t0, seeds };
+    /* ---------- puntos de las palabras (se muestrea el texto en un lienzo oculto) ---------- */
+    const off = document.createElement("canvas");
+    const octx = off.getContext("2d", { willReadFrequently: true });
+
+    function wordTargets(order){
+      const big = Math.min(W * 0.075, H * 0.13);
+      const small = big * 0.58;
+      const cx = W * 0.665;
+      const lines = order.map((i, k) => ({ i, k, size: i === 0 ? big : small }));
+      const gap = big * 0.42;
+      const total = lines.reduce((s, l) => s + l.size, 0) + gap * 2;
+      let y = H * 0.44 - total / 2;
+      off.width = W; off.height = H;
+      octx.clearRect(0, 0, W, H);
+      octx.fillStyle = "#000";
+      octx.textAlign = "center";
+      octx.textBaseline = "top";
+      lines.forEach(l => {
+        octx.font = `400 ${l.size}px Arial, Helvetica, sans-serif`;
+        if ("letterSpacing" in octx) octx.letterSpacing = (-0.02 * l.size) + "px";
+        l.y0 = y; l.y1 = y + l.size;
+        octx.fillText(NAMES[l.i], cx, y);
+        y += l.size + gap;
+      });
+      const data = octx.getImageData(0, 0, W, H).data;
+      const pts = [];
+      lines.forEach(l => {
+        const step = Math.max(2, Math.round(l.size / (l.i === 0 ? 19 : 17)));
+        for (let yy = Math.floor(l.y0); yy < Math.min(H, l.y1 + l.size * 0.25); yy += step){
+          for (let xx = 0; xx < W; xx += step){
+            const k = (yy * W + xx) * 4 + 3;
+            if (data[k] > 70) pts.push({ x: xx + rnd(-0.6, 0.6), y: yy + rnd(-0.6, 0.6), main: l.i === 0, line: l.k });
+          }
+        }
+      });
+      return { pts, lines: lines.map(l => ({ text: NAMES[l.i], size: l.size, x: cx, y: l.y0, main: l.i === 0 })) };
     }
 
-    /* títulos: cambian de orden con cada flor nueva; PERSONAS siempre destacada */
-    const NAMES = ["PERSONAS", "PROCESOS", "TECNOLOGÍA"];
-    const ORDERS = [[0,1,2],[1,0,2],[2,1,0],[1,2,0],[0,2,1],[2,0,1]];
-    const titlesBox = document.getElementById("titles");
+    /* ---------- generaciones ---------- */
     let genCount = 0;
-    const events = [];   // {at, fn}
-    function scheduleTitles(t0){
+    const gens = [];
+
+    function makeGeneration(t0){
       const order = ORDERS[genCount % ORDERS.length];
       genCount++;
-      const els = order.map((ni, k) => {
-        const el = document.createElement("div");
-        el.className = "title " + (ni === 0 ? "main" : "sec");
-        el.textContent = NAMES[ni];
-        el.style.top = (40 + (k - 1) * 14) + "vh";
-        titlesBox.appendChild(el);
-        return el;
+      const wt = wordTargets(order);
+      let targets = wt.pts;
+      const MAX = 1500;
+      if (targets.length > MAX){
+        for (let i = targets.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [targets[i], targets[j]] = [targets[j], targets[i]]; }
+        targets = targets.slice(0, MAX);
+      }
+      /* las palabras se "escriben" renglón por renglón, de izquierda a derecha */
+      targets.sort((a, b) => (a.line - b.line) * W * 0.25 + (a.x - b.x));
+      const n = targets.length;
+      const rot = rnd(0, Math.PI * 2);
+      const seeds = [];
+      for (let i = 0; i < n; i++){
+        const y = 1 - (i + 0.5) / n * 2;
+        const r = Math.sqrt(1 - y * y);
+        const th = i * 2.39996 + rot;
+        seeds.push({
+          v: { x: Math.cos(th) * r, y, z: Math.sin(th) * r },
+          len: rnd(0.92, 1.05),
+          grow: rnd(0, 0.5),
+          ph: rnd(0, 6.28),
+          state: "head"
+        });
+      }
+      /* se sueltan primero las del lado derecho (el viento sopla hacia la derecha) */
+      const byWind = seeds.map(s => ({ s, k: s.v.x + rnd(-0.25, 0.25) })).sort((a, b) => b.k - a.k).map(o => o.s);
+      byWind.forEach((s, k) => {
+        s.rel = t0 + GROW + HOLD + (k / n) * RELEASE;
+        s.target = targets[k];
+        s.flight = FLIGHT * rnd(0.85, 1.15);
       });
-      els.forEach((el, k) => {
-        events.push({ at: t0 + 0.7 + k * 0.6, fn: () => el.classList.add("on") });
-        events.push({ at: t0 + NEXT_AFTER - 0.4 + k * 0.45, fn: () => { el.classList.remove("on"); el.classList.add("gone"); } });
-        events.push({ at: t0 + NEXT_AFTER + 2.5, fn: () => el.remove() });
-      });
+      const formedAt = Math.max(...seeds.map(s => s.rel + s.flight));
+      return { t0, seeds, leaveAt: Infinity, dens: Math.min(1, 380 / n), lines: wt.lines, formedAt };
     }
 
-    let clock = 0, last = performance.now(), paused = false;
-    const gens = [makeGeneration(0)];
-    scheduleTitles(0);
-    let nextAt = NEXT_AFTER;
-    const flying = [];
+    gens.push(makeGeneration(0));
+    let nextAt = NEXT;
 
-    /* dibujo de una semilla con su vilano (paracaídas de filamentos) */
-    function drawPappus(x, y, dirx, diry, size, alpha){
-      const n = 11, spread = 1.45;
+    /* ---------- dibujo ---------- */
+    function pappus(x, y, dirx, diry, size, alpha, n = 9, spread = 1.4){
+      if (size < 0.6 || alpha <= 0.01) return;
       const base = Math.atan2(diry, dirx);
-      ctx.strokeStyle = `rgba(${INK},${alpha * 0.34})`;
+      ctx.strokeStyle = `rgba(${INK},${alpha * 0.32})`;
       ctx.lineWidth = 0.6;
       ctx.beginPath();
       for (let k = 0; k < n; k++){
@@ -204,10 +201,11 @@
       ctx.moveTo(bx, by);
       ctx.quadraticCurveTo(W * HX + U * 0.05, (by + h.y) / 2, h.x, h.y + U * 0.02);
       ctx.stroke();
-      /* receptáculo */
       ctx.fillStyle = `rgba(${INK},0.75)`;
       ctx.beginPath(); ctx.ellipse(h.x, h.y + U * 0.008, U * 0.016, U * 0.012, 0, 0, Math.PI * 2); ctx.fill();
     }
+
+    let last = performance.now(), paused = false;
 
     function frame(now){
       requestAnimationFrame(frame);
@@ -216,84 +214,121 @@
       clock += dt;
 
       if (clock >= nextAt){
+        /* cuando la nueva flor empiece a soltar semillas, el viento se lleva las palabras anteriores */
+        gens.forEach(o => { if (o.leaveAt === Infinity) o.leaveAt = clock + GROW + HOLD; });
         gens.push(makeGeneration(clock));
-        scheduleTitles(clock);
-        nextAt = clock + NEXT_AFTER;
-      }
-
-      for (let i = events.length - 1; i >= 0; i--){
-        if (clock >= events[i].at){ events[i].fn(); events.splice(i, 1); }
+        nextAt = clock + NEXT;
       }
 
       ctx.clearRect(0, 0, W, H);
       const h = head(), rad = R();
       drawStem(h);
 
-      /* cabezas: se proyecta la esfera con una perspectiva leve */
       const tilt = Math.sin(clock * 0.35) * 0.25;
-      const items = [];
+      const c = Math.cos(tilt), sn = Math.sin(tilt);
+      const headItems = [];
+
+      /* texto nítido: aparece cuando todas las semillas llegaron y se desvanece antes de dispersarse */
+      gens.forEach(g => {
+        const tin = clamp((clock - g.formedAt) / 0.9);
+        const tout = clamp((clock - (g.leaveAt - 0.7)) / 0.6);
+        const ta = tin * (1 - tout);
+        if (ta <= 0) return;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        g.lines.forEach(l => {
+          ctx.font = `400 ${l.size}px Arial, Helvetica, sans-serif`;
+          if ("letterSpacing" in ctx) ctx.letterSpacing = (-0.02 * l.size) + "px";
+          ctx.fillStyle = `rgba(${INK},${(l.main ? 0.92 : 0.5) * ta})`;
+          ctx.fillText(l.text, l.x, l.y);
+        });
+        if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+      });
+
       gens.forEach(g => {
         g.seeds.forEach(s => {
-          if (s.state !== "head") return;
+          if (s.state === "gone") return;
+          /* posición en la cabeza */
           const gk = eo((clock - g.t0 - s.grow * GROW * 0.6) / (GROW * 0.7));
           if (gk <= 0) return;
-          /* rotación suave alrededor del eje vertical */
-          const c = Math.cos(tilt), sn = Math.sin(tilt);
           const vx = s.v.x * c + s.v.z * sn, vz = -s.v.x * sn + s.v.z * c, vy = s.v.y;
           const persp = 1 + vz * 0.18;
           const L = rad * s.len * gk * persp;
-          const x = h.x + vx * L, y = h.y + vy * L * 0.96;
-          if (clock >= s.rel){
-            /* se suelta: pasa a volar con el viento */
-            s.state = "fly";
-            s.x = x; s.y = y;
-            s.vx = U * rnd(0.05, 0.12) + vx * U * 0.03;
-            s.vy = -U * rnd(0.01, 0.045) + vy * U * 0.02;
-            s.ang = Math.atan2(vy, vx);
-            s.size = rad * 0.20 * persp;
-            flying.push(s);
+          const hx = h.x + vx * L, hy = h.y + vy * L * 0.96;
+
+          if (clock < s.rel){
+            headItems.push({ x: hx, y: hy, vx, vy, vz, gk, persp, dens: g.dens });
             return;
           }
-          items.push({ x, y, vx, vy, vz, gk, persp });
+
+          /* vuelo hacia su lugar en la palabra */
+          if (s.state === "head"){
+            s.state = "fly";
+            s.sx = hx; s.sy = hy;
+            s.c1x = hx + rnd(0.05, 0.25) * W; s.c1y = hy - rnd(0.10, 0.30) * H;
+            s.size0 = rad * 0.19 * persp;
+          }
+          const T = s.target;
+          const p = clamp((clock - s.rel) / s.flight);
+          const e = eio(p);
+          const wob = (1 - e) * U * 0.02;
+          let x = (1-e)*(1-e)*s.sx + 2*(1-e)*e*s.c1x + e*e*T.x + Math.sin(clock * 2.1 + s.ph) * wob;
+          let y = (1-e)*(1-e)*s.sy + 2*(1-e)*e*s.c1y + e*e*T.y + Math.cos(clock * 1.7 + s.ph) * wob;
+          let alpha = T.main ? 0.88 : 0.5;
+          const dot = T.main ? 1.7 : 1.25;
+
+          /* las palabras anteriores se las lleva el viento: los puntos vuelven a ser semillas */
+          let regrow = 0;
+          if (clock > g.leaveAt){
+            if (s.ldelay === undefined){
+              s.ldelay = (T.x / W - 0.45) * 2.2 + rnd(0, 0.9);
+              s.lvx = U * rnd(0.10, 0.22); s.lvy = -U * rnd(0.02, 0.07);
+            }
+            const lt = clock - g.leaveAt - s.ldelay;
+            regrow = eo((clock - g.leaveAt - s.ldelay + 0.5) / 0.7);
+            if (lt > 0){
+              x += s.lvx * lt + U * 0.03 * lt * lt;
+              y += s.lvy * lt + Math.sin(clock * 1.5 + s.ph) * U * 0.01 * lt;
+              alpha *= clamp(1 - (lt - 0.6) / LEAVE);
+              if (alpha <= 0.005){ s.state = "gone"; return; }
+            }
+          }
+
+          /* en vuelo se ve la semilla con su vilano; al llegar se reduce a un punto;
+             al irse, el vilano vuelve a abrirse y se va como semilla */
+          /* con muchas semillas, cada vilano se hace más chico y tenue para no amontonarse */
+          const lite = 0.45 + 0.55 * g.dens;
+          if (regrow > 0.02){
+            const tuft = regrow * s.size0 * (T.main ? 0.36 : 0.30);
+            const tilt2 = Math.sin(clock * 0.9 + s.ph) * 0.3;
+            const pa = alpha * lite * (T.main ? 0.95 : 1.05);
+            ctx.strokeStyle = `rgba(${INK},${pa * 0.45})`;
+            ctx.lineWidth = 0.6;
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tilt2 * tuft * 0.4, y - tuft * 0.8); ctx.stroke();
+            pappus(x + tilt2 * tuft * 0.4, y - tuft * 0.8, tilt2, -1, tuft, pa, 7, 1.3);
+          } else if (e < 0.98){
+            const dx = s.c1x - s.sx;
+            const m = Math.hypot(dx, 1) || 1;
+            pappus(x, y, 0.2 * dx / m, -1, (1 - e) * s.size0 * 0.6, alpha * lite * (1 - e * 0.8), 7, 1.3);
+          }
+          ctx.fillStyle = `rgba(${INK},${alpha})`;
+          ctx.beginPath(); ctx.ellipse(x, y, dot * (0.7 + 0.3 * e) * (1 - 0.3 * regrow), dot * (0.7 + 0.3 * e) * (1 + 0.6 * regrow), 0, 0, Math.PI * 2); ctx.fill();
         });
       });
-      items.sort((a, b) => a.vz - b.vz);
-      items.forEach(it => {
-        const alpha = (0.35 + 0.45 * (it.vz + 1) / 2) * it.gk;
-        ctx.strokeStyle = `rgba(${INK},${alpha * 0.30})`;
-        ctx.lineWidth = 0.6;
+
+      /* la cabeza se dibuja de atrás hacia adelante */
+      headItems.sort((a, b) => a.vz - b.vz);
+      headItems.forEach(it => {
+        const a = (0.30 + 0.40 * (it.vz + 1) / 2) * it.gk * (0.35 + 0.65 * it.dens);
+        ctx.strokeStyle = `rgba(${INK},${a * 0.22})`;
+        ctx.lineWidth = 0.5;
         ctx.beginPath(); ctx.moveTo(h.x, h.y); ctx.lineTo(it.x, it.y); ctx.stroke();
         const m = Math.hypot(it.vx, it.vy) || 1;
-        drawPappus(it.x, it.y, it.vx / m, it.vy / m, rad * 0.20 * it.persp * it.gk, alpha);
+        pappus(it.x, it.y, it.vx / m, it.vy / m, rad * 0.19 * it.persp * it.gk, a * 0.75, 7, 1.4);
       });
 
-      /* semillas en vuelo: siguen flotando hasta salir de la pantalla */
-      for (let i = flying.length - 1; i >= 0; i--){
-        const s = flying[i];
-        s.life += dt;
-        const gust = Math.sin(clock * 1.3 + s.ph) * U * 0.03;
-        s.x += (s.vx + gust * 0.4) * dt;
-        s.y += (s.vy + Math.cos(clock * 0.9 + s.ph) * U * 0.012) * dt;
-        s.vy -= U * 0.002 * dt;
-        /* el vilano se orienta hacia arriba poco a poco */
-        const target = -Math.PI / 2 + Math.sin(clock * 0.8 + s.ph) * 0.35;
-        s.ang += (target - s.ang) * Math.min(1, dt * 1.2);
-        if (s.x > W + 60 || s.y < -60 || s.x < -60){ flying.splice(i, 1); continue; }
-        const a = 0.75 * clamp(1 - s.life / 14);
-        /* aquenio (semilla) y su tallito */
-        const dx = Math.cos(s.ang), dy = Math.sin(s.ang);
-        const stalk = s.size * 0.9;
-        const bx = s.x - dx * stalk, by = s.y - dy * stalk;
-        ctx.strokeStyle = `rgba(${INK},${a * 0.6})`;
-        ctx.lineWidth = 0.8;
-        ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(s.x, s.y); ctx.stroke();
-        ctx.fillStyle = `rgba(${INK},${a})`;
-        ctx.beginPath(); ctx.ellipse(bx - dx * 2, by - dy * 2, 1.2, 2.6, s.ang + Math.PI / 2, 0, Math.PI * 2); ctx.fill();
-        drawPappus(s.x, s.y, dx, dy, s.size, a);
-      }
-
-      /* generaciones vacías se retiran de la memoria */
-      while (gens.length > 1 && gens[0].seeds.every(s => s.state === "fly")) gens.shift();
+      /* limpiar generaciones que ya se fueron */
+      while (gens.length > 1 && gens[0].seeds.every(s => s.state === "gone")) gens.shift();
     }
     requestAnimationFrame(frame);
 
