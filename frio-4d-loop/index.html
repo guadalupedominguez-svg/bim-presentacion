@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oficinas Frío Express · Simulación 4D (loop)</title>
+  <style>
+    html, body{
+      margin:0;
+      width:100%;
+      height:100%;
+      overflow:hidden;
+      background:#f5f7fa;   /* mismo fondo que la simulación */
+    }
+    iframe{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      border:0;
+      display:block;
+      transition:opacity 700ms ease;
+    }
+  </style>
+</head>
+<body>
+  <script>
+  {
+    /* La simulación original dura 60 s y al terminar se queda en el último cuadro.
+       Esta página la vuelve a cargar al terminar para que se repita sin fin,
+       con un fundido suave para que no se vea el cambio. */
+    const SRC = "https://peasa-workspace.pages.dev/s/frio-4d/";
+    const ANIM_MS = 60000;   // duración de la simulación original
+    const HOLD_MS = 4000;    // tiempo que se muestra el resultado final antes de reiniciar
+
+    let current = null;
+
+    function makeFrame(visible){
+      const f = document.createElement("iframe");
+      f.src = SRC + "?loop=" + Date.now();
+      f.allow = "autoplay; fullscreen";
+      f.title = "Simulación constructiva 4D";
+      f.style.opacity = visible ? "1" : "0";
+      document.body.appendChild(f);
+      return f;
+    }
+
+    function cycle(){
+      const prev = current;
+      const next = makeFrame(!prev);
+      current = next;
+      next.addEventListener("load", () => {
+        /* la simulación arranca al cargar: se muestra y se retira la anterior */
+        setTimeout(() => {
+          next.style.opacity = "1";
+          if (prev) setTimeout(() => prev.remove(), 800);
+        }, 250);
+        setTimeout(cycle, ANIM_MS + HOLD_MS);
+      }, { once: true });
+    }
+
+    cycle();
+  }
+  </script>
+</body>
+</html>
