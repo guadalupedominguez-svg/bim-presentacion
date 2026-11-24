@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Diente de león</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@400;700&display=swap" rel="stylesheet">
 
   <style>
     :root{
@@ -19,7 +22,7 @@
       height:100%;
       overflow:hidden;
       background:var(--bg);
-      font-family:Arial, Helvetica, sans-serif;
+      font-family:"Arimo", Arial, Helvetica, sans-serif;
     }
 
     .stage{
@@ -52,7 +55,7 @@
 </head>
 
 <body>
-  <main class="stage" aria-label="Diente de león cuyas semillas forman las palabras personas, procesos y tecnología">
+  <main class="stage" aria-label="Diente de león cuyas semillas forman las palabras personas, procesos y tecnología, y luego otro diente de león">
     <canvas id="c"></canvas>
     <div class="hint">ESPACIO · PAUSA</div>
   </main>
@@ -62,22 +65,28 @@
     const canvas = document.getElementById("c");
     const ctx = canvas.getContext("2d");
     const INK = "10,10,10";
+    const FONT = '"Arimo", Arial, Helvetica, sans-serif';
 
-    /* ritmo de cada generación (segundos) */
-    const GROW = 2.6;      // crece la cabeza
-    const HOLD = 4.5;      // cabeza completa (mientras se leen las palabras anteriores)
-    const RELEASE = 2.6;   // las semillas se sueltan
-    const FLIGHT = 2.3;    // vuelo hasta su lugar en la palabra
-    const NEXT = 8.5;      // cada cuánto nace una flor nueva (antes de que la anterior se vacíe)
-    const LEAVE = 2.6;     // el viento se lleva las palabras anteriores
+    /* ---------- ritmo (segundos) ---------- */
+    const FIRST_GROW = 2.6;   // la primera flor crece
+    const HOLD_HEAD  = 2.2;   // flor completa antes de soltar
+    const RELEASE    = 2.6;   // se sueltan las semillas
+    const FLIGHT     = 2.3;   // vuelo hasta las letras
+    const WORD_HOLD  = 3.4;   // palabras nítidas en pantalla
+    const TEXT_OUT   = 0.6;   // el texto nítido se desvanece
+    const LEAVE_SPREAD = 1.6; // las letras se desintegran escalonadas
+    const FLY_HOME   = 2.6;   // vuelo hasta formar la flor del otro lado
+    const STEM_GROW  = 1.6;
 
     const NAMES = ["PERSONAS", "PROCESOS", "TECNOLOGÍA"];
     const ORDERS = [[0,1,2],[1,0,2],[2,1,0],[1,2,0],[0,2,1],[2,0,1]];
+    const SX = [0.17, 0.83];  // flor izquierda / flor derecha
 
     const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
     const eo = x => 1 - Math.pow(1 - clamp(x), 3);
     const eio = x => { x = clamp(x); return x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2; };
     const rnd = (a, b) => a + Math.random() * (b - a);
+    const bez = (a, c, b, e) => (1-e)*(1-e)*a + 2*(1-e)*e*c + e*e*b;
 
     let W = 0, H = 0, U = 0;
     function resize(){
@@ -90,18 +99,17 @@
     resize();
 
     let clock = 0;
-    const HX = 0.25;
-    const head = () => ({ x: W * HX + Math.sin(clock * 0.6) * U * 0.006, y: H * 0.40 });
-    const R = () => U * 0.16;
+    const R = () => U * 0.15;
+    const headC = side => ({ x: W * SX[side] + Math.sin(clock * 0.6 + side * 2) * U * 0.006, y: H * 0.42 });
 
-    /* ---------- puntos de las palabras (se muestrea el texto en un lienzo oculto) ---------- */
+    /* ---------- puntos de las palabras ---------- */
     const off = document.createElement("canvas");
     const octx = off.getContext("2d", { willReadFrequently: true });
 
-    function wordTargets(order){
-      const big = Math.min(W * 0.075, H * 0.13);
+    function wordLayout(order){
+      const big = Math.min(W * 0.066, H * 0.12);
       const small = big * 0.58;
-      const cx = W * 0.665;
+      const cx = W * 0.5;
       const lines = order.map((i, k) => ({ i, k, size: i === 0 ? big : small }));
       const gap = big * 0.42;
       const total = lines.reduce((s, l) => s + l.size, 0) + gap * 2;
@@ -112,7 +120,7 @@
       octx.textAlign = "center";
       octx.textBaseline = "top";
       lines.forEach(l => {
-        octx.font = `400 ${l.size}px Arial, Helvetica, sans-serif`;
+        octx.font = `400 ${l.size}px ${FONT}`;
         if ("letterSpacing" in octx) octx.letterSpacing = (-0.02 * l.size) + "px";
         l.y0 = y; l.y1 = y + l.size;
         octx.fillText(NAMES[l.i], cx, y);
@@ -124,61 +132,84 @@
         const step = Math.max(2, Math.round(l.size / (l.i === 0 ? 19 : 17)));
         for (let yy = Math.floor(l.y0); yy < Math.min(H, l.y1 + l.size * 0.25); yy += step){
           for (let xx = 0; xx < W; xx += step){
-            const k = (yy * W + xx) * 4 + 3;
-            if (data[k] > 70) pts.push({ x: xx + rnd(-0.6, 0.6), y: yy + rnd(-0.6, 0.6), main: l.i === 0, line: l.k });
+            if (data[(yy * W + xx) * 4 + 3] > 70) pts.push({ x: xx + rnd(-0.6, 0.6), y: yy + rnd(-0.6, 0.6), main: l.i === 0, line: l.k });
           }
         }
       });
       return { pts, lines: lines.map(l => ({ text: NAMES[l.i], size: l.size, x: cx, y: l.y0, main: l.i === 0 })) };
     }
 
-    /* ---------- generaciones ---------- */
-    let genCount = 0;
-    const gens = [];
-
-    function makeGeneration(t0){
-      const order = ORDERS[genCount % ORDERS.length];
-      genCount++;
-      const wt = wordTargets(order);
-      let targets = wt.pts;
-      const MAX = 1500;
-      if (targets.length > MAX){
-        for (let i = targets.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [targets[i], targets[j]] = [targets[j], targets[i]]; }
-        targets = targets.slice(0, MAX);
-      }
-      /* las palabras se "escriben" renglón por renglón, de izquierda a derecha */
-      targets.sort((a, b) => (a.line - b.line) * W * 0.25 + (a.x - b.x));
-      const n = targets.length;
+    /* ---------- semillas (las mismas durante toda la animación) ---------- */
+    let seeds = [], N = 0, dens = 1;
+    function makeSeeds(n){
+      N = n; dens = Math.min(1, 380 / n);
       const rot = rnd(0, Math.PI * 2);
-      const seeds = [];
+      seeds = [];
       for (let i = 0; i < n; i++){
         const y = 1 - (i + 0.5) / n * 2;
         const r = Math.sqrt(1 - y * y);
         const th = i * 2.39996 + rot;
-        seeds.push({
-          v: { x: Math.cos(th) * r, y, z: Math.sin(th) * r },
-          len: rnd(0.92, 1.05),
-          grow: rnd(0, 0.5),
-          ph: rnd(0, 6.28),
-          state: "head"
-        });
+        seeds.push({ v: { x: Math.cos(th) * r, y, z: Math.sin(th) * r }, len: rnd(0.92, 1.05), grow: rnd(0, 0.5), ph: rnd(0, 6.28) });
       }
-      /* se sueltan primero las del lado derecho (el viento sopla hacia la derecha) */
-      const byWind = seeds.map(s => ({ s, k: s.v.x + rnd(-0.25, 0.25) })).sort((a, b) => b.k - a.k).map(o => o.s);
-      byWind.forEach((s, k) => {
-        s.rel = t0 + GROW + HOLD + (k / n) * RELEASE;
-        s.target = targets[k];
-        s.flight = FLIGHT * rnd(0.85, 1.15);
-      });
-      const formedAt = Math.max(...seeds.map(s => s.rel + s.flight));
-      return { t0, seeds, leaveAt: Infinity, dens: Math.min(1, 380 / n), lines: wt.lines, formedAt };
     }
 
-    gens.push(makeGeneration(0));
-    let nextAt = NEXT;
+    function headPos(side, s, tilt, gk = 1){
+      const c = Math.cos(tilt), sn = Math.sin(tilt);
+      const vx = s.v.x * c + s.v.z * sn, vz = -s.v.x * sn + s.v.z * c, vy = s.v.y;
+      const persp = 1 + vz * 0.18;
+      const L = R() * s.len * gk * persp;
+      const h = headC(side);
+      return { x: h.x + vx * L, y: h.y + vy * L * 0.96, vx, vy, vz, persp, hx: h.x, hy: h.y };
+    }
+
+    /* ---------- ciclos: flor → palabras → flor del otro lado ---------- */
+    let cyc = null, cycleCount = 0;
+    const stems = [{ g0: 0, fade0: Infinity }, { g0: Infinity, fade0: Infinity }];
+
+    function schedule(Tc, S, first){
+      const O = 1 - S;
+      const order = ORDERS[cycleCount % ORDERS.length];
+      cycleCount++;
+      const lay = wordLayout(order);
+      let targets = lay.pts;
+      if (first) makeSeeds(Math.min(1500, targets.length));
+      if (targets.length > N){
+        for (let i = targets.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [targets[i], targets[j]] = [targets[j], targets[i]]; }
+        targets = targets.slice(0, N);
+      } else {
+        while (targets.length < N) targets.push(targets[Math.floor(Math.random() * targets.length)]);
+      }
+      /* las letras se escriben desde el lado de la flor */
+      const dir = S === 0 ? 1 : -1;
+      targets.sort((a, b) => (a.line - b.line) * W + dir * (a.x - b.x));
+
+      const headReady = first ? Tc + FIRST_GROW : Tc;
+      const relStart = headReady + HOLD_HEAD;
+      const byRelease = seeds.map(s => ({ s, k: dir * s.v.x + rnd(-0.25, 0.25) })).sort((a, b) => b.k - a.k).map(o => o.s);
+      byRelease.forEach((s, k) => {
+        s.tRel = relStart + (k / N) * RELEASE;
+        s.fl1 = FLIGHT * rnd(0.85, 1.15);
+        s.T = targets[k];
+        s.c1dx = dir * rnd(0.04, 0.2) * W; s.c1dy = -rnd(0.10, 0.28) * H;
+      });
+      const formedAt = Math.max(...seeds.map(s => s.tRel + s.fl1));
+      const textOutAt = formedAt + 0.9 + WORD_HOLD;
+      const leaveStart = textOutAt + TEXT_OUT;
+      /* se desintegran primero las letras más cercanas a la flor nueva */
+      const byLeave = seeds.slice().sort((a, b) => dir * (b.T.x - a.T.x));
+      byLeave.forEach((s, k) => {
+        s.tLeave = leaveStart + (k / N) * LEAVE_SPREAD + rnd(0, 0.4);
+        s.fl2 = FLY_HOME * rnd(0.85, 1.15);
+        s.c2dy = -rnd(0.10, 0.25) * H;
+      });
+      const end = Math.max(...seeds.map(s => s.tLeave + s.fl2)) + 0.3;
+      stems[O].g0 = leaveStart; stems[O].fade0 = Infinity;
+      stems[S].fade0 = leaveStart + 1.2;
+      cyc = { S, O, first, Tc, lines: lay.lines, formedAt, textOutAt, end };
+    }
 
     /* ---------- dibujo ---------- */
-    function pappus(x, y, dirx, diry, size, alpha, n = 9, spread = 1.4){
+    function pappus(x, y, dirx, diry, size, alpha, n = 7, spread = 1.35){
       if (size < 0.6 || alpha <= 0.01) return;
       const base = Math.atan2(diry, dirx);
       ctx.strokeStyle = `rgba(${INK},${alpha * 0.32})`;
@@ -192,144 +223,151 @@
       ctx.stroke();
     }
 
-    function drawStem(h){
-      const by = H + 10, bx = W * HX - U * 0.02;
-      ctx.strokeStyle = `rgba(${INK},0.62)`;
+    function drawStem(side){
+      const st = stems[side];
+      const g = eo((clock - st.g0) / STEM_GROW);
+      const a = 1 - clamp((clock - st.fade0) / 2.5);
+      if (g <= 0 || a <= 0) return;
+      const h = headC(side);
+      const lean = side === 0 ? 1 : -1;
+      const bx = W * SX[side] - lean * U * 0.02, by = H + 10;
+      const cx = W * SX[side] + lean * U * 0.05, cy = (by + h.y) / 2;
+      const ex = h.x, ey = h.y + U * 0.02;
+      ctx.strokeStyle = `rgba(${INK},${0.62 * a})`;
       ctx.lineWidth = Math.max(2, U * 0.0035);
       ctx.lineCap = "round";
       ctx.beginPath();
       ctx.moveTo(bx, by);
-      ctx.quadraticCurveTo(W * HX + U * 0.05, (by + h.y) / 2, h.x, h.y + U * 0.02);
+      const n = 30;
+      for (let i = 1; i <= n * g; i++){ const e = i / n; ctx.lineTo(bez(bx, cx, ex, e), bez(by, cy, ey, e)); }
+      ctx.lineTo(bez(bx, cx, ex, g), bez(by, cy, ey, g));
       ctx.stroke();
-      ctx.fillStyle = `rgba(${INK},0.75)`;
-      ctx.beginPath(); ctx.ellipse(h.x, h.y + U * 0.008, U * 0.016, U * 0.012, 0, 0, Math.PI * 2); ctx.fill();
+      if (g > 0.85){
+        ctx.fillStyle = `rgba(${INK},${0.75 * a * clamp((g - 0.85) / 0.15)})`;
+        ctx.beginPath(); ctx.ellipse(h.x, h.y + U * 0.008, U * 0.016, U * 0.012, 0, 0, Math.PI * 2); ctx.fill();
+      }
     }
 
-    let last = performance.now(), paused = false;
+    let last = performance.now(), paused = false, started = false;
 
     function frame(now){
       requestAnimationFrame(frame);
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      if (paused) return;
+      if (paused || !started) return;
       clock += dt;
-
-      if (clock >= nextAt){
-        /* cuando la nueva flor empiece a soltar semillas, el viento se lleva las palabras anteriores */
-        gens.forEach(o => { if (o.leaveAt === Infinity) o.leaveAt = clock + GROW + HOLD; });
-        gens.push(makeGeneration(clock));
-        nextAt = clock + NEXT;
-      }
+      if (clock >= cyc.end) schedule(cyc.end, cyc.O, false);
 
       ctx.clearRect(0, 0, W, H);
-      const h = head(), rad = R();
-      drawStem(h);
+      drawStem(0); drawStem(1);
 
+      const { S, O } = cyc;
       const tilt = Math.sin(clock * 0.35) * 0.25;
-      const c = Math.cos(tilt), sn = Math.sin(tilt);
+      const rad = R();
       const headItems = [];
 
-      /* texto nítido: aparece cuando todas las semillas llegaron y se desvanece antes de dispersarse */
-      gens.forEach(g => {
-        const tin = clamp((clock - g.formedAt) / 0.9);
-        const tout = clamp((clock - (g.leaveAt - 0.7)) / 0.6);
-        const ta = tin * (1 - tout);
-        if (ta <= 0) return;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        g.lines.forEach(l => {
-          ctx.font = `400 ${l.size}px Arial, Helvetica, sans-serif`;
+      /* texto nítido: aparece al terminar de formarse y se desvanece antes de desintegrarse */
+      const ta = clamp((clock - cyc.formedAt) / 0.9) * (1 - clamp((clock - cyc.textOutAt) / TEXT_OUT));
+      if (ta > 0){
+        ctx.textAlign = "center"; ctx.textBaseline = "top";
+        cyc.lines.forEach(l => {
+          ctx.font = `400 ${l.size}px ${FONT}`;
           if ("letterSpacing" in ctx) ctx.letterSpacing = (-0.02 * l.size) + "px";
           ctx.fillStyle = `rgba(${INK},${(l.main ? 0.92 : 0.5) * ta})`;
           ctx.fillText(l.text, l.x, l.y);
         });
         if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
-      });
+      }
 
-      gens.forEach(g => {
-        g.seeds.forEach(s => {
-          if (s.state === "gone") return;
-          /* posición en la cabeza */
-          const gk = eo((clock - g.t0 - s.grow * GROW * 0.6) / (GROW * 0.7));
-          if (gk <= 0) return;
-          const vx = s.v.x * c + s.v.z * sn, vz = -s.v.x * sn + s.v.z * c, vy = s.v.y;
-          const persp = 1 + vz * 0.18;
-          const L = rad * s.len * gk * persp;
-          const hx = h.x + vx * L, hy = h.y + vy * L * 0.96;
+      seeds.forEach(s => {
+        const T = s.T;
+        const alphaW = T.main ? 0.88 : 0.5;
+        const dot = T.main ? 1.7 : 1.25;
+        const lite = 0.45 + 0.55 * dens;
 
-          if (clock < s.rel){
-            headItems.push({ x: hx, y: hy, vx, vy, vz, gk, persp, dens: g.dens });
-            return;
+        /* 1. en la flor del lado S */
+        if (clock < s.tRel){
+          const gk = cyc.first ? eo((clock - cyc.Tc - s.grow * FIRST_GROW * 0.6) / (FIRST_GROW * 0.7)) : 1;
+          if (gk > 0) headItems.push({ ...headPos(S, s, tilt, gk), gk });
+          return;
+        }
+        /* 2. vuelo hacia las letras */
+        if (clock < s.tRel + s.fl1){
+          if (s.lastRel !== s.tRel){
+            const p = headPos(S, s, tilt);
+            s.sx = p.x; s.sy = p.y; s.size0 = rad * 0.19 * p.persp; s.lastRel = s.tRel;
           }
-
-          /* vuelo hacia su lugar en la palabra */
-          if (s.state === "head"){
-            s.state = "fly";
-            s.sx = hx; s.sy = hy;
-            s.c1x = hx + rnd(0.05, 0.25) * W; s.c1y = hy - rnd(0.10, 0.30) * H;
-            s.size0 = rad * 0.19 * persp;
-          }
-          const T = s.target;
-          const p = clamp((clock - s.rel) / s.flight);
-          const e = eio(p);
+          const e = eio((clock - s.tRel) / s.fl1);
           const wob = (1 - e) * U * 0.02;
-          let x = (1-e)*(1-e)*s.sx + 2*(1-e)*e*s.c1x + e*e*T.x + Math.sin(clock * 2.1 + s.ph) * wob;
-          let y = (1-e)*(1-e)*s.sy + 2*(1-e)*e*s.c1y + e*e*T.y + Math.cos(clock * 1.7 + s.ph) * wob;
-          let alpha = T.main ? 0.88 : 0.5;
-          const dot = T.main ? 1.7 : 1.25;
-
-          /* las palabras anteriores se las lleva el viento: los puntos vuelven a ser semillas */
-          let regrow = 0;
-          if (clock > g.leaveAt){
-            if (s.ldelay === undefined){
-              s.ldelay = (T.x / W - 0.45) * 2.2 + rnd(0, 0.9);
-              s.lvx = U * rnd(0.10, 0.22); s.lvy = -U * rnd(0.02, 0.07);
-            }
-            const lt = clock - g.leaveAt - s.ldelay;
-            regrow = eo((clock - g.leaveAt - s.ldelay + 0.5) / 0.7);
-            if (lt > 0){
-              x += s.lvx * lt + U * 0.03 * lt * lt;
-              y += s.lvy * lt + Math.sin(clock * 1.5 + s.ph) * U * 0.01 * lt;
-              alpha *= clamp(1 - (lt - 0.6) / LEAVE);
-              if (alpha <= 0.005){ s.state = "gone"; return; }
-            }
+          const x = bez(s.sx, s.sx + s.c1dx, T.x, e) + Math.sin(clock * 2.1 + s.ph) * wob;
+          const y = bez(s.sy, s.sy + s.c1dy, T.y, e) + Math.cos(clock * 1.7 + s.ph) * wob;
+          pappus(x, y, 0.2 * Math.sign(s.c1dx), -1, (1 - e) * s.size0 * 0.6, alphaW * lite * (1 - e * 0.8));
+          ctx.fillStyle = `rgba(${INK},${alphaW})`;
+          ctx.beginPath(); ctx.arc(x, y, dot * (0.7 + 0.3 * e), 0, Math.PI * 2); ctx.fill();
+          return;
+        }
+        /* 3. punto en la letra */
+        if (clock < s.tLeave){
+          ctx.fillStyle = `rgba(${INK},${alphaW})`;
+          ctx.beginPath(); ctx.arc(T.x, T.y, dot, 0, Math.PI * 2); ctx.fill();
+          return;
+        }
+        /* 4. vuelve a ser semilla y vuela a formar la flor del lado O */
+        if (clock < s.tLeave + s.fl2){
+          const size0 = s.size0 || rad * 0.19;
+          const lt = (clock - s.tLeave) / s.fl2;
+          const regrow = eo(lt / 0.2);
+          const e = eio((lt - 0.12) / 0.88);
+          const end = headPos(O, s, tilt);
+          const cxm = (T.x + end.x) / 2, cym = Math.min(T.y, end.y) + s.c2dy;
+          const wob = Math.sin(Math.PI * e) * U * 0.02;
+          const x = bez(T.x, cxm, end.x, e) + Math.sin(clock * 1.9 + s.ph) * wob;
+          const y = bez(T.y, cym, end.y, e) + Math.cos(clock * 1.5 + s.ph) * wob;
+          /* al acercarse a la flor, el vilano gira hacia afuera y crece a su tamaño */
+          const b = clamp((e - 0.7) / 0.3);
+          const upx = Math.sin(clock * 0.9 + s.ph) * 0.3, upy = -1;
+          const m = Math.hypot(end.vx, end.vy) || 1;
+          const dx = upx * (1 - b) + (end.vx / m) * b, dy = upy * (1 - b) + (end.vy / m) * b;
+          const size = (T.main ? 0.36 : 0.30) * size0 * regrow * (1 - b) + rad * 0.19 * end.persp * b;
+          const a = (alphaW * lite) * (1 - b) + (0.3 + 0.4 * (end.vz + 1) / 2) * (0.35 + 0.65 * dens) * 0.75 * b;
+          pappus(x, y, dx, dy, size, a);
+          if (b < 1){
+            ctx.fillStyle = `rgba(${INK},${alphaW * (1 - b)})`;
+            ctx.beginPath(); ctx.ellipse(x, y, dot * (1 - 0.3 * regrow), dot * (1 + 0.6 * regrow), 0, 0, Math.PI * 2); ctx.fill();
           }
-
-          /* en vuelo se ve la semilla con su vilano; al llegar se reduce a un punto;
-             al irse, el vilano vuelve a abrirse y se va como semilla */
-          /* con muchas semillas, cada vilano se hace más chico y tenue para no amontonarse */
-          const lite = 0.45 + 0.55 * g.dens;
-          if (regrow > 0.02){
-            const tuft = regrow * s.size0 * (T.main ? 0.36 : 0.30);
-            const tilt2 = Math.sin(clock * 0.9 + s.ph) * 0.3;
-            const pa = alpha * lite * (T.main ? 0.95 : 1.05);
-            ctx.strokeStyle = `rgba(${INK},${pa * 0.45})`;
-            ctx.lineWidth = 0.6;
-            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + tilt2 * tuft * 0.4, y - tuft * 0.8); ctx.stroke();
-            pappus(x + tilt2 * tuft * 0.4, y - tuft * 0.8, tilt2, -1, tuft, pa, 7, 1.3);
-          } else if (e < 0.98){
-            const dx = s.c1x - s.sx;
-            const m = Math.hypot(dx, 1) || 1;
-            pappus(x, y, 0.2 * dx / m, -1, (1 - e) * s.size0 * 0.6, alpha * lite * (1 - e * 0.8), 7, 1.3);
+          if (b > 0){
+            ctx.strokeStyle = `rgba(${INK},${a * 0.3 * b})`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath(); ctx.moveTo(end.hx, end.hy); ctx.lineTo(x, y); ctx.stroke();
           }
-          ctx.fillStyle = `rgba(${INK},${alpha})`;
-          ctx.beginPath(); ctx.ellipse(x, y, dot * (0.7 + 0.3 * e) * (1 - 0.3 * regrow), dot * (0.7 + 0.3 * e) * (1 + 0.6 * regrow), 0, 0, Math.PI * 2); ctx.fill();
-        });
+          return;
+        }
+        /* 5. ya forma parte de la flor nueva */
+        headItems.push({ ...headPos(O, s, tilt), gk: 1 });
       });
 
-      /* la cabeza se dibuja de atrás hacia adelante */
+      /* cabezas, de atrás hacia adelante */
       headItems.sort((a, b) => a.vz - b.vz);
       headItems.forEach(it => {
-        const a = (0.30 + 0.40 * (it.vz + 1) / 2) * it.gk * (0.35 + 0.65 * it.dens);
+        const a = (0.30 + 0.40 * (it.vz + 1) / 2) * it.gk * (0.35 + 0.65 * dens);
         ctx.strokeStyle = `rgba(${INK},${a * 0.22})`;
         ctx.lineWidth = 0.5;
-        ctx.beginPath(); ctx.moveTo(h.x, h.y); ctx.lineTo(it.x, it.y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(it.hx, it.hy); ctx.lineTo(it.x, it.y); ctx.stroke();
         const m = Math.hypot(it.vx, it.vy) || 1;
         pappus(it.x, it.y, it.vx / m, it.vy / m, rad * 0.19 * it.persp * it.gk, a * 0.75, 7, 1.4);
       });
-
-      /* limpiar generaciones que ya se fueron */
-      while (gens.length > 1 && gens[0].seeds.every(s => s.state === "gone")) gens.shift();
     }
+
+    function start(){
+      if (started) return;
+      resize();
+      schedule(0, 0, true);
+      started = true;
+      last = performance.now();
+    }
+    /* se espera a que cargue Arimo para muestrear bien las letras */
+    if (document.fonts && document.fonts.load){
+      Promise.race([document.fonts.load(`400 64px ${FONT}`), new Promise(r => setTimeout(r, 2000))]).then(start, start);
+    } else start();
     requestAnimationFrame(frame);
 
     document.addEventListener("keydown", (e) => {
