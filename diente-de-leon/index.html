@@ -108,10 +108,10 @@
 
     function wordLayout(order){
       const big = Math.min(W * 0.066, H * 0.12);
-      const small = big * 0.58;
+      const small = big * 0.76;
       const cx = W * 0.5;
       const lines = order.map((i, k) => ({ i, k, size: i === 0 ? big : small }));
-      const gap = big * 0.42;
+      const gap = big * 0.36;
       const total = lines.reduce((s, l) => s + l.size, 0) + gap * 2;
       let y = H * 0.44 - total / 2;
       off.width = W; off.height = H;
@@ -272,7 +272,7 @@
         cyc.lines.forEach(l => {
           ctx.font = `400 ${l.size}px ${FONT}`;
           if ("letterSpacing" in ctx) ctx.letterSpacing = (-0.02 * l.size) + "px";
-          ctx.fillStyle = `rgba(${INK},${(l.main ? 0.92 : 0.5) * ta})`;
+          ctx.fillStyle = `rgba(${INK},${ta})`;
           ctx.fillText(l.text, l.x, l.y);
         });
         if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
@@ -280,8 +280,8 @@
 
       seeds.forEach(s => {
         const T = s.T;
-        const alphaW = T.main ? 0.88 : 0.5;
-        const dot = T.main ? 1.7 : 1.25;
+        const alphaW = 1;
+        const dot = T.main ? 1.6 : 1.4;
         const lite = 0.45 + 0.55 * dens;
 
         /* 1. en la flor del lado S */
@@ -305,9 +305,11 @@
           ctx.beginPath(); ctx.arc(x, y, dot * (0.7 + 0.3 * e), 0, Math.PI * 2); ctx.fill();
           return;
         }
-        /* 3. punto en la letra */
+        /* 3. punto en la letra (se oculta mientras el texto nítido está completo) */
         if (clock < s.tLeave){
-          ctx.fillStyle = `rgba(${INK},${alphaW})`;
+          const da = alphaW * (1 - ta);
+          if (da <= 0.01) return;
+          ctx.fillStyle = `rgba(${INK},${da})`;
           ctx.beginPath(); ctx.arc(T.x, T.y, dot, 0, Math.PI * 2); ctx.fill();
           return;
         }
@@ -327,7 +329,7 @@
           const upx = Math.sin(clock * 0.9 + s.ph) * 0.3, upy = -1;
           const m = Math.hypot(end.vx, end.vy) || 1;
           const dx = upx * (1 - b) + (end.vx / m) * b, dy = upy * (1 - b) + (end.vy / m) * b;
-          const size = (T.main ? 0.36 : 0.30) * size0 * regrow * (1 - b) + rad * 0.19 * end.persp * b;
+          const size = 0.32 * size0 * regrow * (1 - b) + rad * 0.19 * end.persp * b;
           const a = (alphaW * lite) * (1 - b) + (0.3 + 0.4 * (end.vz + 1) / 2) * (0.35 + 0.65 * dens) * 0.75 * b;
           pappus(x, y, dx, dy, size, a);
           if (b < 1){
