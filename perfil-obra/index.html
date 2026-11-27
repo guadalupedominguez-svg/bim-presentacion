@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Perfil Digital en Obra — Cierre</title>
+<style>
+:root{
+  --paper:#f5f6f7;
+  --ink:#111418;
+  --muted:#6e7881;
+  --blue:#2997df;
+}
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:var(--paper);
+  font-family:Arial,Helvetica,sans-serif;
+}
+body{display:grid;place-items:center}
+
+.stage{
+  position:relative;
+  width:min(100vw,177.777vh);
+  aspect-ratio:16/9;
+  overflow:hidden;
+  background:#f5f6f7;
+  color:var(--ink);
+}
+
+.base,.sharp{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.base{
+  opacity:.52;
+  filter:saturate(.68) contrast(.92);
+  transition:opacity 900ms ease,filter 900ms ease;
+}
+.sharp{
+  opacity:1;
+  clip-path:inset(15% 74% 15% 2%);
+  transition:clip-path 1150ms cubic-bezier(.22,.8,.2,1), opacity 850ms ease;
+}
+
+.topline{
+  position:absolute;
+  left:4.5%;
+  right:4.5%;
+  top:5.2%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  z-index:6;
+}
+.eyebrow{
+  font-size:clamp(.58rem,.72vw,.78rem);
+  letter-spacing:.22em;
+  font-weight:700;
+  color:#56616a;
+}
+.stepcount{
+  font-size:clamp(.58rem,.72vw,.78rem);
+  letter-spacing:.16em;
+  color:#8b949b;
+}
+
+.rule{
+  position:absolute;
+  top:9.4%;
+  left:4.5%;
+  right:4.5%;
+  height:1px;
+  background:rgba(17,20,24,.13);
+  z-index:6;
+}
+.rule::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  height:1px;
+  width:var(--progress,16%);
+  background:var(--ink);
+  transition:width 900ms cubic-bezier(.22,.8,.2,1);
+}
+
+.marker{
+  position:absolute;
+  top:11.5%;
+  bottom:19%;
+  width:1px;
+  left:16%;
+  background:rgba(17,20,24,.24);
+  z-index:5;
+  transition:left 1150ms cubic-bezier(.22,.8,.2,1), opacity 500ms ease;
+}
+.marker::before{
+  content:"";
+  position:absolute;
+  top:-3px;
+  left:-3px;
+  width:7px;height:7px;
+  border-radius:50%;
+  background:var(--ink);
+}
+
+.caption{
+  position:absolute;
+  left:4.5%;
+  bottom:6.7%;
+  width:68%;
+  z-index:8;
+  display:grid;
+  grid-template-columns:92px 1fr;
+  column-gap:24px;
+  align-items:start;
+}
+.num{
+  font-size:clamp(.76rem,1.05vw,1.08rem);
+  letter-spacing:.14em;
+  color:var(--blue);
+  font-weight:700;
+  padding-top:.25em;
+}
+.copy h2{
+  margin:0;
+  font-size:clamp(1.55rem,2.75vw,3.2rem);
+  line-height:.98;
+  font-weight:400;
+  letter-spacing:-.035em;
+  text-transform:uppercase;
+}
+.copy p{
+  margin:.72rem 0 0;
+  max-width:760px;
+  color:#5c6770;
+  font-size:clamp(.76rem,1.02vw,1.05rem);
+  line-height:1.45;
+}
+.caption.fade{
+  opacity:0;
+  transform:translateY(8px);
+}
+.caption{
+  opacity:1;
+  transform:translateY(0);
+  transition:opacity 280ms ease, transform 420ms ease;
+}
+
+.sequence{
+  position:absolute;
+  right:4.5%;
+  bottom:7.2%;
+  z-index:7;
+  display:flex;
+  gap:7px;
+}
+.sequence span{
+  display:block;
+  width:18px;height:2px;
+  background:#c3c9ce;
+  transition:width 300ms ease, background 300ms ease;
+}
+.sequence span.active{
+  width:36px;
+  background:var(--ink);
+}
+
+.final{
+  position:absolute;
+  inset:0;
+  z-index:20;
+  background:rgba(246,247,248,.95);
+  display:flex;
+  align-items:center;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 900ms ease;
+}
+.final.show{opacity:1}
+.final-inner{
+  width:100%;
+  padding:0 8.5%;
+  display:grid;
+  grid-template-columns:1fr 1.25fr;
+  gap:7%;
+  align-items:end;
+}
+.final-left{
+  align-self:start;
+  padding-top:.6rem;
+}
+.final-label{
+  font-size:clamp(.62rem,.8vw,.86rem);
+  letter-spacing:.22em;
+  color:#6b747c;
+  font-weight:700;
+}
+.final-right h1{
+  margin:0;
+  font-size:clamp(2.2rem,4.65vw,5.6rem);
+  line-height:.93;
+  font-weight:400;
+  letter-spacing:-.055em;
+  text-transform:uppercase;
+}
+.final-right h1 strong{
+  display:block;
+  font-weight:400;
+  color:var(--blue);
+}
+.final-right p{
+  margin:1.3rem 0 0;
+  max-width:780px;
+  font-size:clamp(.86rem,1.2vw,1.22rem);
+  line-height:1.5;
+  color:#4f5961;
+}
+.final-line{
+  position:absolute;
+  left:8.5%;
+  right:8.5%;
+  bottom:9%;
+  height:1px;
+  background:rgba(17,20,24,.16);
+}
+.final-line::after{
+  content:"";
+  position:absolute;
+  left:0;top:-1px;
+  width:18%;
+  height:3px;
+  background:var(--blue);
+}
+
+.hint{
+  position:absolute;
+  right:4.5%;
+  top:3%;
+  z-index:30;
+  font-size:.58rem;
+  letter-spacing:.12em;
+  color:#899198;
+  opacity:.42;
+  user-select:none;
+}
+
+@media (max-width:900px){
+  .caption{width:82%;grid-template-columns:58px 1fr;column-gap:14px}
+  .final-inner{grid-template-columns:1fr;gap:2rem;align-items:center}
+  .final-left{padding-top:0}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important}
+}
+</style>
+</head>
+<body>
+<main id="stage" class="stage" tabindex="0" aria-label="Perfil digital en obra">
+  <img class="base" alt="" src="perfil.png">
+  <img id="sharp" class="sharp" alt="" src="perfil.png">
+
+  <div class="topline">
+    <div class="eyebrow">PERFIL DIGITAL EN OBRA</div>
+    <div id="stepcount" class="stepcount">01 / 05</div>
+  </div>
+  <div id="rule" class="rule"></div>
+  <div id="marker" class="marker"></div>
+
+  <section id="caption" class="caption">
+    <div id="num" class="num">01</div>
+    <div class="copy">
+      <h2 id="title">OBSERVA LA REALIDAD</h2>
+      <p id="desc">El punto de partida sigue siendo la obra: comprender qué está ocurriendo antes de digitalizarlo.</p>
+    </div>
+  </section>
+
+  <div id="sequence" class="sequence"></div>
+
+  <section id="final" class="final" aria-hidden="true">
+    <div class="final-inner">
+      <div class="final-left">
+        <div class="final-label">TRANSFORMACIÓN DIGITAL · CONSTRUCCIÓN</div>
+      </div>
+      <div class="final-right">
+        <h1>EL PERFIL DIGITAL<br><strong>NO OPERA TECNOLOGÍA.</strong><br>CONVIERTE INFORMACIÓN EN DECISIONES.</h1>
+        <p>Entiende la obra, estructura la información y utiliza la tecnología —incluida la IA— para ampliar su criterio, anticipar riesgos y generar valor.</p>
+      </div>
+    </div>
+    <div class="final-line"></div>
+  </section>
+
+  <div class="hint">← → NAVEGAR · ESPACIO PAUSA</div>
+</main>
+
+<script>
+const scenes = [
+  {
+    n:"01", title:"OBSERVA LA REALIDAD",
+    desc:"El punto de partida sigue siendo la obra: comprender qué está ocurriendo antes de digitalizarlo.",
+    clip:"inset(13% 74% 14% 2%)", marker:"16%", progress:"18%"
+  },
+  {
+    n:"02", title:"ESTRUCTURA EL MODELO",
+    desc:"Convierte la realidad física en un sistema legible: geometría, secuencia, relaciones y contexto.",
+    clip:"inset(15% 55% 13% 24%)", marker:"35%", progress:"36%"
+  },
+  {
+    n:"03", title:"INTERPRETA LOS DATOS",
+    desc:"No acumula información: la transforma en indicadores, tendencias y señales para tomar decisiones.",
+    clip:"inset(14% 34% 13% 43%)", marker:"54%", progress:"56%"
+  },
+  {
+    n:"04", title:"DECIDE EN CAMPO",
+    desc:"Integra criterio técnico, contexto y velocidad de respuesta. La decisión sigue siendo profesional.",
+    clip:"inset(11% 13% 11% 64%)", marker:"76%", progress:"78%"
+  },
+  {
+    n:"05", title:"AMPLIFICA CON IA",
+    desc:"La IA no reemplaza el conocimiento de obra: aumenta la capacidad de analizar, comparar, documentar y anticipar.",
+    clip:"inset(24% 1.5% 15% 80%)", marker:"89%", progress:"100%"
+  }
+];
+
+const stage=document.getElementById("stage");
+const sharp=document.getElementById("sharp");
+const marker=document.getElementById("marker");
+const rule=document.getElementById("rule");
+const caption=document.getElementById("caption");
+const num=document.getElementById("num");
+const title=document.getElementById("title");
+const desc=document.getElementById("desc");
+const stepcount=document.getElementById("stepcount");
+const final=document.getElementById("final");
+const sequence=document.getElementById("sequence");
+
+let index=0, paused=false, timer=null;
+const STEP_TIME=3300;
+
+scenes.forEach((_,i)=>{
+  const s=document.createElement("span");
+  if(i===0)s.classList.add("active");
+  sequence.appendChild(s);
+});
+
+function render(i){
+  index=i;
+  final.classList.remove("show");
+  final.setAttribute("aria-hidden","true");
+
+  const s=scenes[index];
+  caption.classList.add("fade");
+
+  setTimeout(()=>{
+    num.textContent=s.n;
+    title.textContent=s.title;
+    desc.textContent=s.desc;
+    stepcount.textContent=s.n+" / 05";
+    sharp.style.clipPath=s.clip;
+    marker.style.left=s.marker;
+    rule.style.setProperty("--progress",s.progress);
+    [...sequence.children].forEach((el,n)=>el.classList.toggle("active",n===index));
+    caption.classList.remove("fade");
+  },230);
+
+  clearTimeout(timer);
+  if(!paused){
+    timer=setTimeout(()=>{
+      if(index<scenes.length-1) render(index+1);
+      else showFinal();
+    },STEP_TIME);
+  }
+}
+
+function showFinal(){
+  clearTimeout(timer);
+  marker.style.opacity="0";
+  caption.classList.add("fade");
+  sharp.style.clipPath="inset(0 0 0 0)";
+  rule.style.setProperty("--progress","100%");
+  setTimeout(()=>{
+    final.classList.add("show");
+    final.setAttribute("aria-hidden","false");
+  },650);
+
+  if(!paused){
+    timer=setTimeout(()=>{
+      marker.style.opacity="1";
+      caption.classList.remove("fade");
+      render(0);
+    },5600);
+  }
+}
+
+function next(){
+  clearTimeout(timer);
+  if(final.classList.contains("show")){
+    final.classList.remove("show");
+    marker.style.opacity="1";
+    render(0);
+  } else if(index<scenes.length-1) render(index+1);
+  else showFinal();
+}
+function prev(){
+  clearTimeout(timer);
+  if(final.classList.contains("show")){
+    final.classList.remove("show");
+    marker.style.opacity="1";
+    render(scenes.length-1);
+  } else render(Math.max(0,index-1));
+}
+function togglePause(){
+  paused=!paused;
+  clearTimeout(timer);
+  if(!paused){
+    timer=setTimeout(()=>{
+      if(final.classList.contains("show")){
+        final.classList.remove("show");
+        marker.style.opacity="1";
+        render(0);
+      } else if(index<scenes.length-1) render(index+1);
+      else showFinal();
+    },900);
+  }
+}
+
+stage.addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight"){e.preventDefault();next()}
+  if(e.key==="ArrowLeft"){e.preventDefault();prev()}
+  if(e.code==="Space"){e.preventDefault();togglePause()}
+});
+
+stage.addEventListener("click",next);
+stage.focus();
+render(0);
+</script>
+
+<a id="volver-al-portal" href="/" aria-label="Volver al portal"
+   style="position:fixed;left:20px;bottom:20px;z-index:2147483000;display:inline-flex;align-items:center;gap:8px;
+          background:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+          border:1px solid rgba(0,0,0,.06);color:#1d1d1f;text-decoration:none;
+          font:600 13px/1 -apple-system,BlinkMacSystemFont,'SF Pro Text',Inter,sans-serif;letter-spacing:-.01em;
+          padding:11px 17px 11px 14px;border-radius:999px;
+          box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.10)">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.2 10.6 12 3.6l8.8 7"/><path d="M5.6 9.4V19a1.4 1.4 0 0 0 1.4 1.4h2.9v-5.6h4.2v5.6H17a1.4 1.4 0 0 0 1.4-1.4V9.4"/></svg>
+  GCPEASA Workspace
+</a>
+<script>if(window.self!==window.top){var b=document.getElementById('volver-al-portal');if(b)b.remove();}</script>
+</body>
+</html>
